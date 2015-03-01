@@ -6,139 +6,24 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
-
-	"github.com/lann/builder"
 )
-
-type selectData struct {
-	PlaceholderFormat PlaceholderFormat
-	RunWith           BaseRunner
-	Prefixes          exprs
-	Distinct          bool
-	Columns           []Sqlizer
-	From              string
-	Joins             []string
-	WhereParts        []Sqlizer
-	GroupBys          []string
-	HavingParts       []Sqlizer
-	OrderBys          []string
-	Limit             uint64
-	Offset            uint64
-	Suffixes          exprs
-}
-
-func (d *selectData) Exec() (sql.Result, error) {
-	if d.RunWith == nil {
-		return nil, RunnerNotSet
-	}
-	return ExecWith(d.RunWith, d)
-}
-
-func (d *selectData) Query() (*sql.Rows, error) {
-	if d.RunWith == nil {
-		return nil, RunnerNotSet
-	}
-	return QueryWith(d.RunWith, d)
-}
-
-func (d *selectData) QueryRow() RowScanner {
-	if d.RunWith == nil {
-		return &Row{err: RunnerNotSet}
-	}
-	queryRower, ok := d.RunWith.(QueryRower)
-	if !ok {
-		return &Row{err: RunnerNotQueryRunner}
-	}
-	return QueryRowWith(queryRower, d)
-}
-
-func (d *selectData) ToSql() (sqlStr string, args []interface{}, err error) {
-	if len(d.Columns) == 0 {
-		err = fmt.Errorf("select statements must have at least one result column")
-		return
-	}
-
-	sql := &bytes.Buffer{}
-
-	if len(d.Prefixes) > 0 {
-		args, _ = d.Prefixes.AppendToSql(sql, " ", args)
-		sql.WriteString(" ")
-	}
-
-	sql.WriteString("SELECT ")
-
-	if d.Distinct {
-		sql.WriteString("DISTINCT ")
-	}
-
-	if len(d.Columns) > 0 {
-		args, err = appendToSql(d.Columns, sql, ", ", args)
-		if err != nil {
-			return
-		}
-	}
-
-	if len(d.From) > 0 {
-		sql.WriteString(" FROM ")
-		sql.WriteString(d.From)
-	}
-
-	if len(d.Joins) > 0 {
-		sql.WriteString(" ")
-		sql.WriteString(strings.Join(d.Joins, " "))
-	}
-
-	if len(d.WhereParts) > 0 {
-		sql.WriteString(" WHERE ")
-		args, err = appendToSql(d.WhereParts, sql, " AND ", args)
-		if err != nil {
-			return
-		}
-	}
-
-	if len(d.GroupBys) > 0 {
-		sql.WriteString(" GROUP BY ")
-		sql.WriteString(strings.Join(d.GroupBys, ", "))
-	}
-
-	if len(d.HavingParts) > 0 {
-		sql.WriteString(" HAVING ")
-		args, err = appendToSql(d.HavingParts, sql, " AND ", args)
-		if err != nil {
-			return
-		}
-	}
-
-	if len(d.OrderBys) > 0 {
-		sql.WriteString(" ORDER BY ")
-		sql.WriteString(strings.Join(d.OrderBys, ", "))
-	}
-
-	if d.Limit > 0 {
-		sql.WriteString(" LIMIT ")
-		sql.WriteString(strconv.FormatUint(d.Limit, 10))
-	}
-
-	if d.Offset > 0 {
-		sql.WriteString(" OFFSET ")
-		sql.WriteString(strconv.FormatUint(d.Offset, 10))
-	}
-
-	if len(d.Suffixes) > 0 {
-		sql.WriteString(" ")
-		args, _ = d.Suffixes.AppendToSql(sql, " ", args)
-	}
-
-	sqlStr, err = d.PlaceholderFormat.ReplacePlaceholders(sql.String())
-	return
-}
-
-// Builder
 
 // SelectBuilder builds SQL SELECT statements.
 type SelectBuilder struct {
-	builder.Builder
-	data selectData
+	placeholderFormat PlaceholderFormat
+	runWith           BaseRunner
+	prefixes          exprs
+	distinct          bool
+	columns           []Sqlizer
+	from              string
+	joins             []string
+	whereParts        []Sqlizer
+	groupBys          []string
+	havingParts       []Sqlizer
+	orderBys          []string
+	limit             uint64
+	offset            uint64
+	suffixes          exprs
 }
 
 // Format methods
@@ -146,7 +31,7 @@ type SelectBuilder struct {
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
 // query.
 func (b *SelectBuilder) PlaceholderFormat(f PlaceholderFormat) *SelectBuilder {
-	b.data.PlaceholderFormat = f
+	b.placeholderFormat = f
 	return b
 }
 
@@ -154,23 +39,36 @@ func (b *SelectBuilder) PlaceholderFormat(f PlaceholderFormat) *SelectBuilder {
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
 func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
-	b.data.RunWith = runner
+	b.runWith = runner
 	return b
 }
 
 // Exec builds and Execs the query with the Runner set by RunWith.
 func (b *SelectBuilder) Exec() (sql.Result, error) {
-	return b.data.Exec()
+	if b.runWith == nil {
+		return nil, RunnerNotSet
+	}
+	return ExecWith(b.runWith, b)
 }
 
 // Query builds and Querys the query with the Runner set by RunWith.
 func (b *SelectBuilder) Query() (*sql.Rows, error) {
-	return b.data.Query()
+	if b.runWith == nil {
+		return nil, RunnerNotSet
+	}
+	return QueryWith(b.runWith, b)
 }
 
 // QueryRow builds and QueryRows the query with the Runner set by RunWith.
 func (b *SelectBuilder) QueryRow() RowScanner {
-	return b.data.QueryRow()
+	if b.runWith == nil {
+		return &Row{err: RunnerNotSet}
+	}
+	queryRower, ok := b.runWith.(QueryRower)
+	if !ok {
+		return &Row{err: RunnerNotQueryRunner}
+	}
+	return QueryRowWith(queryRower, b)
 }
 
 // Scan is a shortcut for QueryRow().Scan.
@@ -181,19 +79,97 @@ func (b *SelectBuilder) Scan(dest ...interface{}) error {
 // SQL methods
 
 // ToSql builds the query into a SQL string and bound args.
-func (b *SelectBuilder) ToSql() (string, []interface{}, error) {
-	return b.data.ToSql()
+func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
+	if len(b.columns) == 0 {
+		err = fmt.Errorf("select statements must have at least one result column")
+		return
+	}
+
+	sql := &bytes.Buffer{}
+
+	if len(b.prefixes) > 0 {
+		args, _ = b.prefixes.AppendToSql(sql, " ", args)
+		sql.WriteString(" ")
+	}
+
+	sql.WriteString("SELECT ")
+
+	if b.distinct {
+		sql.WriteString("DISTINCT ")
+	}
+
+	if len(b.columns) > 0 {
+		args, err = appendToSql(b.columns, sql, ", ", args)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(b.from) > 0 {
+		sql.WriteString(" FROM ")
+		sql.WriteString(b.from)
+	}
+
+	if len(b.joins) > 0 {
+		sql.WriteString(" ")
+		sql.WriteString(strings.Join(b.joins, " "))
+	}
+
+	if len(b.whereParts) > 0 {
+		sql.WriteString(" WHERE ")
+		args, err = appendToSql(b.whereParts, sql, " AND ", args)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(b.groupBys) > 0 {
+		sql.WriteString(" GROUP BY ")
+		sql.WriteString(strings.Join(b.groupBys, ", "))
+	}
+
+	if len(b.havingParts) > 0 {
+		sql.WriteString(" HAVING ")
+		args, err = appendToSql(b.havingParts, sql, " AND ", args)
+		if err != nil {
+			return
+		}
+	}
+
+	if len(b.orderBys) > 0 {
+		sql.WriteString(" ORDER BY ")
+		sql.WriteString(strings.Join(b.orderBys, ", "))
+	}
+
+	if b.limit > 0 {
+		sql.WriteString(" LIMIT ")
+		sql.WriteString(strconv.FormatUint(b.limit, 10))
+	}
+
+	if b.offset > 0 {
+		sql.WriteString(" OFFSET ")
+		sql.WriteString(strconv.FormatUint(b.offset, 10))
+	}
+
+	if len(b.suffixes) > 0 {
+		sql.WriteString(" ")
+		args, _ = b.suffixes.AppendToSql(sql, " ", args)
+	}
+
+	sqlStr, err = b.placeholderFormat.ReplacePlaceholders(sql.String())
+	return
+
 }
 
 // Prefix adds an expression to the beginning of the query
 func (b *SelectBuilder) Prefix(sql string, args ...interface{}) *SelectBuilder {
-	b.data.Prefixes = append(b.data.Prefixes, Expr(sql, args...))
+	b.prefixes = append(b.prefixes, Expr(sql, args...))
 	return b
 }
 
 // Distinct adds a DISTINCT clause to the query.
 func (b *SelectBuilder) Distinct() *SelectBuilder {
-	b.data.Distinct = true
+	b.distinct = true
 
 	return b
 }
@@ -201,7 +177,7 @@ func (b *SelectBuilder) Distinct() *SelectBuilder {
 // Columns adds result columns to the query.
 func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 	for _, str := range columns {
-		b.data.Columns = append(b.data.Columns, newPart(str))
+		b.columns = append(b.columns, newPart(str))
 	}
 
 	return b
@@ -212,20 +188,20 @@ func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 // the columns string, for example:
 //   Column("IF(col IN ("+squirrel.Placeholders(3)+"), 1, 0) as col", 1, 2, 3)
 func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectBuilder {
-	b.data.Columns = append(b.data.Columns, newPart(column, args...))
+	b.columns = append(b.columns, newPart(column, args...))
 
 	return b
 }
 
 // From sets the FROM clause of the query.
 func (b *SelectBuilder) From(from string) *SelectBuilder {
-	b.data.From = from
+	b.from = from
 	return b
 }
 
 // JoinClause adds a join clause to the query.
 func (b *SelectBuilder) JoinClause(join string) *SelectBuilder {
-	b.data.Joins = append(b.data.Joins, join)
+	b.joins = append(b.joins, join)
 
 	return b
 }
@@ -266,13 +242,13 @@ func (b *SelectBuilder) RightJoin(join string) *SelectBuilder {
 //
 // Where will panic if pred isn't any of the above types.
 func (b *SelectBuilder) Where(pred interface{}, args ...interface{}) *SelectBuilder {
-	b.data.WhereParts = append(b.data.WhereParts, newWherePart(pred, args...))
+	b.whereParts = append(b.whereParts, newWherePart(pred, args...))
 	return b
 }
 
 // GroupBy adds GROUP BY expressions to the query.
 func (b *SelectBuilder) GroupBy(groupBys ...string) *SelectBuilder {
-	b.data.GroupBys = append(b.data.GroupBys, groupBys...)
+	b.groupBys = append(b.groupBys, groupBys...)
 	return b
 }
 
@@ -280,31 +256,31 @@ func (b *SelectBuilder) GroupBy(groupBys ...string) *SelectBuilder {
 //
 // See Where.
 func (b *SelectBuilder) Having(pred interface{}, rest ...interface{}) *SelectBuilder {
-	b.data.HavingParts = append(b.data.HavingParts, newWherePart(pred, rest...))
+	b.havingParts = append(b.havingParts, newWherePart(pred, rest...))
 	return b
 }
 
 // OrderBy adds ORDER BY expressions to the query.
 func (b *SelectBuilder) OrderBy(orderBys ...string) *SelectBuilder {
-	b.data.OrderBys = append(b.data.OrderBys, orderBys...)
+	b.orderBys = append(b.orderBys, orderBys...)
 	return b
 }
 
 // Limit sets a LIMIT clause on the query.
 func (b *SelectBuilder) Limit(limit uint64) *SelectBuilder {
-	b.data.Limit = limit
+	b.limit = limit
 	return b
 }
 
 // Offset sets a OFFSET clause on the query.
 func (b *SelectBuilder) Offset(offset uint64) *SelectBuilder {
-	b.data.Offset = offset
+	b.offset = offset
 	return b
 }
 
 // Suffix adds an expression to the end of the query
 func (b *SelectBuilder) Suffix(sql string, args ...interface{}) *SelectBuilder {
-	b.data.Suffixes = append(b.data.Suffixes, Expr(sql, args...))
+	b.suffixes = append(b.suffixes, Expr(sql, args...))
 
 	return b
 }
