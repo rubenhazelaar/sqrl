@@ -52,6 +52,37 @@ func TestSelectBuilderToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func BenchmarkSelectBuilderToSql(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+
+		qb := Select("a", "b").
+			Prefix("WITH prefix AS ?", 0).
+			Distinct().
+			Columns("c").
+			Column("IF(d IN ("+Placeholders(3)+"), 1, 0) as stat_column", 1, 2, 3).
+			Column(Expr("a > ?", 100)).
+			Column(Eq{"b": []int{101, 102, 103}}).
+			From("e").
+			JoinClause("CROSS JOIN j1").
+			Join("j2").
+			LeftJoin("j3").
+			RightJoin("j4").
+			Where("f = ?", 4).
+			Where(Eq{"g": 5}).
+			Where(map[string]interface{}{"h": 6}).
+			Where(Eq{"i": []int{7, 8, 9}}).
+			Where(Or{Expr("j = ?", 10), And{Eq{"k": 11}, Expr("true")}}).
+			GroupBy("l").
+			Having("m = n").
+			OrderBy("o ASC", "p DESC").
+			Limit(12).
+			Offset(13).
+			Suffix("FETCH FIRST ? ROWS ONLY", 14)
+
+		qb.ToSql()
+	}
+}
+
 func TestSelectBuilderToSqlErr(t *testing.T) {
 	_, _, err := Select().From("x").ToSql()
 	assert.Error(t, err)

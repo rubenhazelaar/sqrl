@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"database/sql"
 	"fmt"
-	"github.com/lann/builder"
+	"strconv"
 	"strings"
+
+	"github.com/lann/builder"
 )
 
 type selectData struct {
@@ -20,8 +22,8 @@ type selectData struct {
 	GroupBys          []string
 	HavingParts       []Sqlizer
 	OrderBys          []string
-	Limit             string
-	Offset            string
+	Limit             uint64
+	Offset            uint64
 	Suffixes          exprs
 }
 
@@ -112,14 +114,14 @@ func (d *selectData) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(strings.Join(d.OrderBys, ", "))
 	}
 
-	if len(d.Limit) > 0 {
+	if d.Limit > 0 {
 		sql.WriteString(" LIMIT ")
-		sql.WriteString(d.Limit)
+		sql.WriteString(strconv.FormatUint(d.Limit, 10))
 	}
 
-	if len(d.Offset) > 0 {
+	if d.Offset > 0 {
 		sql.WriteString(" OFFSET ")
-		sql.WriteString(d.Offset)
+		sql.WriteString(strconv.FormatUint(d.Offset, 10))
 	}
 
 	if len(d.Suffixes) > 0 {
@@ -134,107 +136,112 @@ func (d *selectData) ToSql() (sqlStr string, args []interface{}, err error) {
 // Builder
 
 // SelectBuilder builds SQL SELECT statements.
-type SelectBuilder builder.Builder
-
-func init() {
-	builder.Register(SelectBuilder{}, selectData{})
+type SelectBuilder struct {
+	builder.Builder
+	data selectData
 }
 
 // Format methods
 
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
 // query.
-func (b SelectBuilder) PlaceholderFormat(f PlaceholderFormat) SelectBuilder {
-	return builder.Set(b, "PlaceholderFormat", f).(SelectBuilder)
+func (b *SelectBuilder) PlaceholderFormat(f PlaceholderFormat) *SelectBuilder {
+	b.data.PlaceholderFormat = f
+	return b
 }
 
 // Runner methods
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
-func (b SelectBuilder) RunWith(runner BaseRunner) SelectBuilder {
-	return setRunWith(b, runner).(SelectBuilder)
+func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
+	b.data.RunWith = runner
+	return b
 }
 
 // Exec builds and Execs the query with the Runner set by RunWith.
-func (b SelectBuilder) Exec() (sql.Result, error) {
-	data := builder.GetStruct(b).(selectData)
-	return data.Exec()
+func (b *SelectBuilder) Exec() (sql.Result, error) {
+	return b.data.Exec()
 }
 
 // Query builds and Querys the query with the Runner set by RunWith.
-func (b SelectBuilder) Query() (*sql.Rows, error) {
-	data := builder.GetStruct(b).(selectData)
-	return data.Query()
+func (b *SelectBuilder) Query() (*sql.Rows, error) {
+	return b.data.Query()
 }
 
 // QueryRow builds and QueryRows the query with the Runner set by RunWith.
-func (b SelectBuilder) QueryRow() RowScanner {
-	data := builder.GetStruct(b).(selectData)
-	return data.QueryRow()
+func (b *SelectBuilder) QueryRow() RowScanner {
+	return b.data.QueryRow()
 }
 
 // Scan is a shortcut for QueryRow().Scan.
-func (b SelectBuilder) Scan(dest ...interface{}) error {
+func (b *SelectBuilder) Scan(dest ...interface{}) error {
 	return b.QueryRow().Scan(dest...)
 }
 
 // SQL methods
 
 // ToSql builds the query into a SQL string and bound args.
-func (b SelectBuilder) ToSql() (string, []interface{}, error) {
-	data := builder.GetStruct(b).(selectData)
-	return data.ToSql()
+func (b *SelectBuilder) ToSql() (string, []interface{}, error) {
+	return b.data.ToSql()
 }
 
 // Prefix adds an expression to the beginning of the query
-func (b SelectBuilder) Prefix(sql string, args ...interface{}) SelectBuilder {
-	return builder.Append(b, "Prefixes", Expr(sql, args...)).(SelectBuilder)
+func (b *SelectBuilder) Prefix(sql string, args ...interface{}) *SelectBuilder {
+	b.data.Prefixes = append(b.data.Prefixes, Expr(sql, args...))
+	return b
 }
 
 // Distinct adds a DISTINCT clause to the query.
-func (b SelectBuilder) Distinct() SelectBuilder {
-	return builder.Set(b, "Distinct", true).(SelectBuilder)
+func (b *SelectBuilder) Distinct() *SelectBuilder {
+	b.data.Distinct = true
+
+	return b
 }
 
 // Columns adds result columns to the query.
-func (b SelectBuilder) Columns(columns ...string) SelectBuilder {
-	var parts []interface{}
+func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 	for _, str := range columns {
-		parts = append(parts, newPart(str))
+		b.data.Columns = append(b.data.Columns, newPart(str))
 	}
-	return builder.Extend(b, "Columns", parts).(SelectBuilder)
+
+	return b
 }
 
 // Column adds a result column to the query.
 // Unlike Columns, Column accepts args which will be bound to placeholders in
 // the columns string, for example:
 //   Column("IF(col IN ("+squirrel.Placeholders(3)+"), 1, 0) as col", 1, 2, 3)
-func (b SelectBuilder) Column(column interface{}, args ...interface{}) SelectBuilder {
-	return builder.Append(b, "Columns", newPart(column, args...)).(SelectBuilder)
+func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectBuilder {
+	b.data.Columns = append(b.data.Columns, newPart(column, args...))
+
+	return b
 }
 
 // From sets the FROM clause of the query.
-func (b SelectBuilder) From(from string) SelectBuilder {
-	return builder.Set(b, "From", from).(SelectBuilder)
+func (b *SelectBuilder) From(from string) *SelectBuilder {
+	b.data.From = from
+	return b
 }
 
 // JoinClause adds a join clause to the query.
-func (b SelectBuilder) JoinClause(join string) SelectBuilder {
-	return builder.Append(b, "Joins", join).(SelectBuilder)
+func (b *SelectBuilder) JoinClause(join string) *SelectBuilder {
+	b.data.Joins = append(b.data.Joins, join)
+
+	return b
 }
 
 // Join adds a JOIN clause to the query.
-func (b SelectBuilder) Join(join string) SelectBuilder {
+func (b *SelectBuilder) Join(join string) *SelectBuilder {
 	return b.JoinClause("JOIN " + join)
 }
 
 // LeftJoin adds a LEFT JOIN clause to the query.
-func (b SelectBuilder) LeftJoin(join string) SelectBuilder {
+func (b *SelectBuilder) LeftJoin(join string) *SelectBuilder {
 	return b.JoinClause("LEFT JOIN " + join)
 }
 
 // RightJoin adds a RIGHT JOIN clause to the query.
-func (b SelectBuilder) RightJoin(join string) SelectBuilder {
+func (b *SelectBuilder) RightJoin(join string) *SelectBuilder {
 	return b.JoinClause("RIGHT JOIN " + join)
 }
 
@@ -258,38 +265,46 @@ func (b SelectBuilder) RightJoin(join string) SelectBuilder {
 // are ANDed together.
 //
 // Where will panic if pred isn't any of the above types.
-func (b SelectBuilder) Where(pred interface{}, args ...interface{}) SelectBuilder {
-	return builder.Append(b, "WhereParts", newWherePart(pred, args...)).(SelectBuilder)
+func (b *SelectBuilder) Where(pred interface{}, args ...interface{}) *SelectBuilder {
+	b.data.WhereParts = append(b.data.WhereParts, newWherePart(pred, args...))
+	return b
 }
 
 // GroupBy adds GROUP BY expressions to the query.
-func (b SelectBuilder) GroupBy(groupBys ...string) SelectBuilder {
-	return builder.Extend(b, "GroupBys", groupBys).(SelectBuilder)
+func (b *SelectBuilder) GroupBy(groupBys ...string) *SelectBuilder {
+	b.data.GroupBys = append(b.data.GroupBys, groupBys...)
+	return b
 }
 
 // Having adds an expression to the HAVING clause of the query.
 //
 // See Where.
-func (b SelectBuilder) Having(pred interface{}, rest ...interface{}) SelectBuilder {
-	return builder.Append(b, "HavingParts", newWherePart(pred, rest...)).(SelectBuilder)
+func (b *SelectBuilder) Having(pred interface{}, rest ...interface{}) *SelectBuilder {
+	b.data.HavingParts = append(b.data.HavingParts, newWherePart(pred, rest...))
+	return b
 }
 
 // OrderBy adds ORDER BY expressions to the query.
-func (b SelectBuilder) OrderBy(orderBys ...string) SelectBuilder {
-	return builder.Extend(b, "OrderBys", orderBys).(SelectBuilder)
+func (b *SelectBuilder) OrderBy(orderBys ...string) *SelectBuilder {
+	b.data.OrderBys = append(b.data.OrderBys, orderBys...)
+	return b
 }
 
 // Limit sets a LIMIT clause on the query.
-func (b SelectBuilder) Limit(limit uint64) SelectBuilder {
-	return builder.Set(b, "Limit", fmt.Sprintf("%d", limit)).(SelectBuilder)
+func (b *SelectBuilder) Limit(limit uint64) *SelectBuilder {
+	b.data.Limit = limit
+	return b
 }
 
 // Offset sets a OFFSET clause on the query.
-func (b SelectBuilder) Offset(offset uint64) SelectBuilder {
-	return builder.Set(b, "Offset", fmt.Sprintf("%d", offset)).(SelectBuilder)
+func (b *SelectBuilder) Offset(offset uint64) *SelectBuilder {
+	b.data.Offset = offset
+	return b
 }
 
 // Suffix adds an expression to the end of the query
-func (b SelectBuilder) Suffix(sql string, args ...interface{}) SelectBuilder {
-	return builder.Append(b, "Suffixes", Expr(sql, args...)).(SelectBuilder)
+func (b *SelectBuilder) Suffix(sql string, args ...interface{}) *SelectBuilder {
+	b.data.Suffixes = append(b.data.Suffixes, Expr(sql, args...))
+
+	return b
 }
