@@ -3,3 +3,12 @@
 ```
 func (b *buffer) WriteStrings(s []string, separator string)
 ```
+- Refactor StatementBuilderType to something like: 
+```
+type StatementBuilderType struct {
+    placeholderFormat PlaceholderFormat
+    runWith           BaseRunner
+
+    dataStruct Sqlizer // dataStruct depends of concrete builder
+}
+```

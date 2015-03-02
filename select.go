@@ -2,6 +2,7 @@ package squirrel
 
 import (
 	"bytes"
+	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -9,7 +10,7 @@ import (
 
 // SelectBuilder builds SQL SELECT statements.
 type SelectBuilder struct {
-	StatementBuilder
+	StatementBuilderType
 
 	prefixes    exprs
 	distinct    bool
@@ -25,8 +26,40 @@ type SelectBuilder struct {
 	suffixes    exprs
 }
 
-func NewSelectBuilder(b StatementBuilder) *SelectBuilder {
-	return &SelectBuilder{StatementBuilder: b}
+func NewSelectBuilder(b StatementBuilderType) *SelectBuilder {
+	return &SelectBuilder{StatementBuilderType: b}
+}
+
+func (b *SelectBuilder) Exec() (sql.Result, error) {
+	if b.runWith == nil {
+		return nil, RunnerNotSet
+	}
+	return ExecWith(b.runWith, b)
+}
+
+// Query builds and Querys the query with the Runner set by RunWith.
+func (b *SelectBuilder) Query() (*sql.Rows, error) {
+	if b.runWith == nil {
+		return nil, RunnerNotSet
+	}
+	return QueryWith(b.runWith, b)
+}
+
+// QueryRow builds and QueryRows the query with the Runner set by RunWith.
+func (b *SelectBuilder) QueryRow() RowScanner {
+	if b.runWith == nil {
+		return &Row{err: RunnerNotSet}
+	}
+	queryRower, ok := b.runWith.(QueryRower)
+	if !ok {
+		return &Row{err: RunnerNotQueryRunner}
+	}
+	return QueryRowWith(queryRower, b)
+}
+
+// Scan is a shortcut for QueryRow().Scan.
+func (b *SelectBuilder) Scan(dest ...interface{}) error {
+	return b.QueryRow().Scan(dest...)
 }
 
 // Format methods

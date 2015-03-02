@@ -1,81 +1,44 @@
 package squirrel
 
-import (
-	"database/sql"
-
-	"github.com/lann/builder"
-)
-
-// StatementBuilder is the type of StatementBuilder.
-type StatementBuilder struct {
+// StatementBuilderType is the type of StatementBuilder.
+type StatementBuilderType struct {
 	placeholderFormat PlaceholderFormat
 	runWith           BaseRunner
 }
 
-func (b *StatementBuilder) Exec() (sql.Result, error) {
-	if b.runWith == nil {
-		return nil, RunnerNotSet
-	}
-	return ExecWith(b.runWith, b)
-}
-
-// Query builds and Querys the query with the Runner set by RunWith.
-func (b *StatementBuilder) Query() (*sql.Rows, error) {
-	if b.runWith == nil {
-		return nil, RunnerNotSet
-	}
-	return QueryWith(b.runWith, b)
-}
-
-// QueryRow builds and QueryRows the query with the Runner set by RunWith.
-func (b *StatementBuilder) QueryRow() RowScanner {
-	if b.runWith == nil {
-		return &Row{err: RunnerNotSet}
-	}
-	queryRower, ok := b.runWith.(QueryRower)
-	if !ok {
-		return &Row{err: RunnerNotQueryRunner}
-	}
-	return QueryRowWith(queryRower, b)
-}
-
-// Scan is a shortcut for QueryRow().Scan.
-func (b *StatementBuilder) Scan(dest ...interface{}) error {
-	return b.QueryRow().Scan(dest...)
-}
-
 // Select returns a SelectBuilder for this StatementBuilder.
-func (b StatementBuilder) Select(columns ...string) *SelectBuilder {
+func (b StatementBuilderType) Select(columns ...string) *SelectBuilder {
 	return NewSelectBuilder(b).Columns(columns...)
 }
 
 // Insert returns a InsertBuilder for this StatementBuilder.
-func (b StatementBuilder) Insert(into string) *InsertBuilder {
+func (b StatementBuilderType) Insert(into string) *InsertBuilder {
 	return NewInsertBuilder(b).Into(into)
 }
 
 // Update returns a UpdateBuilder for this StatementBuilder.
-func (b StatementBuilder) Update(table string) UpdateBuilder {
-	return UpdateBuilder(b).Table(table)
+func (b StatementBuilderType) Update(table string) UpdateBuilder {
+	return UpdateBuilder{}
 }
 
 // Delete returns a DeleteBuilder for this StatementBuilder.
-func (b StatementBuilder) Delete(from string) DeleteBuilder {
-	return DeleteBuilder(b).From(from)
+func (b StatementBuilderType) Delete(from string) DeleteBuilder {
+	return DeleteBuilder{}
 }
 
 // PlaceholderFormat sets the PlaceholderFormat field for any child builders.
-func (b StatementBuilder) PlaceholderFormat(f PlaceholderFormat) StatementBuilder {
-	return builder.Set(b, "PlaceholderFormat", f).(StatementBuilder)
+func (b StatementBuilderType) PlaceholderFormat(f PlaceholderFormat) StatementBuilderType {
+	b.placeholderFormat = f
+	return b
 }
 
 // RunWith sets the RunWith field for any child builders.
-func (b StatementBuilder) RunWith(runner BaseRunner) StatementBuilder {
-	return setRunWith(b, runner).(StatementBuilder)
+func (b StatementBuilderType) RunWith(runner BaseRunner) StatementBuilderType {
+	b.runWith = runner
+	return b
 }
 
-// StatementBuilder is a parent builder for other builders, e.g. SelectBuilder.
-var StatementBuilder = StatementBuilder(builder.EmptyBuilder).PlaceholderFormat(Question)
+var StatementBuilder = StatementBuilderType{placeholderFormat: Question}
 
 // Select returns a new SelectBuilder, optionally setting some result columns.
 //
@@ -87,7 +50,7 @@ func Select(columns ...string) *SelectBuilder {
 // Insert returns a new InsertBuilder with the given table name.
 //
 // See InsertBuilder.Into.
-func Insert(into string) InsertBuilder {
+func Insert(into string) *InsertBuilder {
 	return StatementBuilder.Insert(into)
 }
 
