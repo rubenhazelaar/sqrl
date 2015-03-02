@@ -2,7 +2,6 @@ package squirrel
 
 import (
 	"bytes"
-	"database/sql"
 	"fmt"
 	"strconv"
 	"strings"
@@ -10,20 +9,24 @@ import (
 
 // SelectBuilder builds SQL SELECT statements.
 type SelectBuilder struct {
-	placeholderFormat PlaceholderFormat
-	runWith           BaseRunner
-	prefixes          exprs
-	distinct          bool
-	columns           []Sqlizer
-	from              string
-	joins             []string
-	whereParts        []Sqlizer
-	groupBys          []string
-	havingParts       []Sqlizer
-	orderBys          []string
-	limit             uint64
-	offset            uint64
-	suffixes          exprs
+	StatementBuilder
+
+	prefixes    exprs
+	distinct    bool
+	columns     []Sqlizer
+	from        string
+	joins       []string
+	whereParts  []Sqlizer
+	groupBys    []string
+	havingParts []Sqlizer
+	orderBys    []string
+	limit       uint64
+	offset      uint64
+	suffixes    exprs
+}
+
+func NewSelectBuilder(b StatementBuilder) *SelectBuilder {
+	return &SelectBuilder{StatementBuilder: b}
 }
 
 // Format methods
@@ -41,39 +44,6 @@ func (b *SelectBuilder) PlaceholderFormat(f PlaceholderFormat) *SelectBuilder {
 func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
 	b.runWith = runner
 	return b
-}
-
-// Exec builds and Execs the query with the Runner set by RunWith.
-func (b *SelectBuilder) Exec() (sql.Result, error) {
-	if b.runWith == nil {
-		return nil, RunnerNotSet
-	}
-	return ExecWith(b.runWith, b)
-}
-
-// Query builds and Querys the query with the Runner set by RunWith.
-func (b *SelectBuilder) Query() (*sql.Rows, error) {
-	if b.runWith == nil {
-		return nil, RunnerNotSet
-	}
-	return QueryWith(b.runWith, b)
-}
-
-// QueryRow builds and QueryRows the query with the Runner set by RunWith.
-func (b *SelectBuilder) QueryRow() RowScanner {
-	if b.runWith == nil {
-		return &Row{err: RunnerNotSet}
-	}
-	queryRower, ok := b.runWith.(QueryRower)
-	if !ok {
-		return &Row{err: RunnerNotQueryRunner}
-	}
-	return QueryRowWith(queryRower, b)
-}
-
-// Scan is a shortcut for QueryRow().Scan.
-func (b *SelectBuilder) Scan(dest ...interface{}) error {
-	return b.QueryRow().Scan(dest...)
 }
 
 // SQL methods
