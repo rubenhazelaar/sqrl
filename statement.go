@@ -1,5 +1,7 @@
 package squirrel
 
+import "github.com/lann/builder"
+
 // StatementBuilderType is the type of StatementBuilder.
 type StatementBuilderType struct {
 	placeholderFormat PlaceholderFormat
@@ -17,8 +19,8 @@ func (b StatementBuilderType) Insert(into string) *InsertBuilder {
 }
 
 // Update returns a UpdateBuilder for this StatementBuilder.
-func (b StatementBuilderType) Update(table string) UpdateBuilder {
-	return UpdateBuilder{}
+func (b StatementBuilderType) Update(table string) *UpdateBuilder {
+	return NewUpdateBuilder(b).Table(table)
 }
 
 // Delete returns a DeleteBuilder for this StatementBuilder.
@@ -57,7 +59,7 @@ func Insert(into string) *InsertBuilder {
 // Update returns a new UpdateBuilder with the given table name.
 //
 // See UpdateBuilder.Table.
-func Update(table string) UpdateBuilder {
+func Update(table string) *UpdateBuilder {
 	return StatementBuilder.Update(table)
 }
 
