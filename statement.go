@@ -24,8 +24,8 @@ func (b StatementBuilderType) Update(table string) *UpdateBuilder {
 }
 
 // Delete returns a DeleteBuilder for this StatementBuilder.
-func (b StatementBuilderType) Delete(from string) DeleteBuilder {
-	return DeleteBuilder{}
+func (b StatementBuilderType) Delete(from string) *DeleteBuilder {
+	return NewDeleteBuilder(b).From(from)
 }
 
 // PlaceholderFormat sets the PlaceholderFormat field for any child builders.
@@ -66,7 +66,7 @@ func Update(table string) *UpdateBuilder {
 // Delete returns a new DeleteBuilder with the given table name.
 //
 // See DeleteBuilder.Table.
-func Delete(from string) DeleteBuilder {
+func Delete(from string) *DeleteBuilder {
 	return StatementBuilder.Delete(from)
 }
 
