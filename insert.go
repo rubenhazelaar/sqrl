@@ -115,11 +115,19 @@ func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		valueStrings := make([]string, len(row))
 
 		for v, val := range row {
-			e, isExpr := val.(expr)
-			if isExpr {
-				valueStrings[v] = e.sql
-				args = append(args, e.args...)
-			} else {
+			switch typedVal := val.(type) {
+			case Sqlizer:
+				var valSql string
+				var valArgs []interface{}
+
+				valSql, valArgs, err = typedVal.ToSql()
+				if err != nil {
+					return
+				}
+
+				valueStrings[v] = valSql
+				args = append(args, valArgs...)
+			default:
 				valueStrings[v] = "?"
 				args = append(args, val)
 			}
@@ -185,6 +193,7 @@ func (b *InsertBuilder) SetMap(clauses map[string]interface{}) *InsertBuilder {
 		b.columns = append(b.columns, col)
 
 		// may panic here
+
 		b.values = append(b.values, val.([]interface{}))
 	}
 
