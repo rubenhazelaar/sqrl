@@ -1,18 +1,37 @@
-# Squirrel - fluent SQL generator for Go
+# Lite Squirrel - fat-free version of fluent SQL generator for Go
+
+**Non thread safe** fork of [squirrel](http://github.com/lann/squirrel)
 
 ```go
-import "github.com/lann/squirrel"
+import "github.com/elgris/squirrel"
 ```
 
-[![GoDoc](https://godoc.org/github.com/lann/squirrel?status.png)](https://godoc.org/github.com/lann/squirrel)
-[![Build Status](https://travis-ci.org/lann/squirrel.png?branch=master)](https://travis-ci.org/lann/squirrel)
+[![GoDoc](https://godoc.org/github.com/elgris/squirrel?status.png)](https://godoc.org/github.com/elgris/squirrel)
+[![Build Status](https://travis-ci.org/elgris/squirrel.png?branch=master)](https://travis-ci.org/elgris/squirrel)
 
-**Squirrel is not an ORM.**
+## Inspired by
 
-Squirrel helps you build SQL queries from composable parts:
+- [squirrel](https://github.com/lann/squirrel)
+- [dbr](https://github.com/gocraft/dbr)
+
+## Why to make good squirrel lighter?
+
+Ask [benchmarks](github.com/elgris/golang-sql-builder-benchmark) about that ;). Squirrel is good, reliable and thread-safe with it's immutable query builder. Although immutability is nice, it's resource consuming and sometimes redundant. As authors of `dbr` say: "100% of our application code was written without the need for this".
+
+## Why not to use dbr then?
+
+Although, [dbr](https://github.com/gocraft/dbr) is proven to be much [faster than squirrel](https://github.com/tyler-smith/golang-sql-benchmark) and even faster than [lite squirrel](https://github.com/elgris/golang-sql-builder-benchmark), it doesn't have all syntax sugar. Especially I miss support of JOINs, subqueries and aliases.
+Second reason is `dbr`'s sweet query builder requires `Session` which requires established database connection. I don't want to connect to database when I need to generate SQL string.
+
+## Usage
+
+**Squirrel is not an ORM.**, it helps you build SQL queries from composable parts.
+**Squirrel lite is non thread safe**. SQL builder change their state, so using the same builder in parallel is dangerous.
+
+It's very easy to switch between original squirrel and light one, because there is no change in interface:
 
 ```go
-import sq "github.com/lann/squirrel"
+import sq "github.com/elgris/squirrel" // you can easily use github.com/lann/squirrel here
 
 users := sq.Select("*").From("users").Join("emails USING (email_id)")
 
@@ -48,57 +67,9 @@ Squirrel makes conditional query building a breeze:
 
 ```go
 if len(q) > 0 {
-    users = users.Where("name LIKE ?", fmt.Sprint("%", q, "%"))
+    users = users.Where("name LIKE ?", q)
 }
 ```
-
-Squirrel wants to make your life easier:
-
-```go
-// StmtCache caches Prepared Stmts for you
-dbCache := sq.NewStmtCacher(db)
-
-// StatementBuilder keeps your syntax neat
-mydb := sq.StatementBuilder.RunWith(dbCache)
-select_users := mydb.Select("*").From("users")
-```
-
-Squirrel loves PostgreSQL:
-
-```go
-psql := sq.StatementBuilder.PlaceholderFormat(Dollar)
-
-// You use question marks for placeholders...
-sql, _, _ := psql.Select("*").From("elephants").Where("name IN (?,?)", "Dumbo", "Verna")
-
-/// ...squirrel replaces them using PlaceholderFormat.
-sql == "SELECT * FROM elephants WHERE name IN ($1,$2)"
-
-
-/// You can retrieve id ...
-query := sq.Insert("nodes").
-    Columns("uuid", "type", "data").
-    Values(node.Uuid, node.Type, node.Data).
-    Suffix("RETURNING \"id\"").
-    RunWith(m.db).
-    PlaceholderFormat(sq.Dollar)
-
-query.QueryRow().Scan(&node.id)
-```
-
-You can escape question mask by inserting two question marks:
-
-```sql
-SELECT * FROM nodes WHERE meta->'format' ??| array[?,?]
-```
-
-will generate with the Dollar Placeholder:
-
-```sql
-SELECT * FROM nodes WHERE meta->'format' ?| array[$1,$2] 
-```
-
-
 
 ## License
 
