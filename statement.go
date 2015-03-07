@@ -1,7 +1,5 @@
 package squirrel
 
-import "github.com/lann/builder"
-
 // StatementBuilderType is the type of StatementBuilder.
 type StatementBuilderType struct {
 	placeholderFormat PlaceholderFormat
@@ -72,8 +70,8 @@ func Delete(from string) *DeleteBuilder {
 
 // Case returns a new CaseBuilder
 // "what" represents case value
-func Case(what ...interface{}) CaseBuilder {
-	b := CaseBuilder(builder.EmptyBuilder)
+func Case(what ...interface{}) *CaseBuilder {
+	b := &CaseBuilder{}
 
 	switch len(what) {
 	case 0:

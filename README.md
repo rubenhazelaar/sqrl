@@ -20,8 +20,8 @@ Ask [benchmarks](github.com/elgris/golang-sql-builder-benchmark) about that ;). 
 
 ## Why not to use dbr then?
 
-Although, [dbr](https://github.com/gocraft/dbr) is proven to be much [faster than squirrel](https://github.com/tyler-smith/golang-sql-benchmark) and even faster than [lite squirrel](https://github.com/elgris/golang-sql-builder-benchmark), it doesn't have all syntax sugar. Especially I miss support of JOINs, subqueries and aliases.
-Second reason is `dbr`'s sweet query builder requires `Session` which requires established database connection. I don't want to connect to database when I need to generate SQL string.
+Although, `dbr`'s query builder is proven to be much [faster than squirrel](https://github.com/tyler-smith/golang-sql-benchmark) and even faster than [lite squirrel](https://github.com/elgris/golang-sql-builder-benchmark), it doesn't have all syntax sugar. Especially I miss support of JOINs, subqueries and aliases.
+Second reason is `dbr`'s sweet query builder requires `Session` which requires established database connection. I don't want to connect to database when I need to generate SQL string. Basically I prefer using one tool to generate SQL qurty and anither one to run it.
 
 ## Usage
 
