@@ -1,13 +1,11 @@
 // Package squirrel provides a fluent SQL generator.
 //
-// See https://github.com/lann/squirrel for examples.
+// See https://github.com/elgris/squirrel for examples.
 package squirrel
 
 import (
 	"database/sql"
 	"fmt"
-
-	"github.com/lann/builder"
 )
 
 // Sqlizer is the interface that wraps the ToSql method.
@@ -67,19 +65,6 @@ type txRunner struct {
 
 func (r *txRunner) QueryRow(query string, args ...interface{}) RowScanner {
 	return r.Tx.QueryRow(query, args...)
-}
-
-func setRunWith(b interface{}, baseRunner BaseRunner) interface{} {
-	var runner Runner
-	switch r := baseRunner.(type) {
-	case Runner:
-		runner = r
-	case *sql.DB:
-		runner = &dbRunner{r}
-	case *sql.Tx:
-		runner = &txRunner{r}
-	}
-	return builder.Set(b, "RunWith", runner)
 }
 
 // RunnerNotSet is returned by methods that need a Runner if it isn't set.

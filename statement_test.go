@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"testing"
 
-	"github.com/lann/builder"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -27,10 +26,10 @@ func TestStatementBuilderPlaceholderFormat(t *testing.T) {
 func TestRunWithDB(t *testing.T) {
 	db := &sql.DB{}
 	assert.NotPanics(t, func() {
-		builder.GetStruct(Select().RunWith(db))
-		builder.GetStruct(Insert("t").RunWith(db))
-		builder.GetStruct(Update("t").RunWith(db))
-		builder.GetStruct(Delete("t").RunWith(db))
+		Select().RunWith(db)
+		Insert("t").RunWith(db)
+		Update("t").RunWith(db)
+		Delete("t").RunWith(db)
 	}, "RunWith(*sql.DB) should not panic")
 
 }
@@ -38,9 +37,9 @@ func TestRunWithDB(t *testing.T) {
 func TestRunWithTx(t *testing.T) {
 	tx := &sql.Tx{}
 	assert.NotPanics(t, func() {
-		builder.GetStruct(Select().RunWith(tx))
-		builder.GetStruct(Insert("t").RunWith(tx))
-		builder.GetStruct(Update("t").RunWith(tx))
-		builder.GetStruct(Delete("t").RunWith(tx))
+		Select().RunWith(tx)
+		Insert("t").RunWith(tx)
+		Update("t").RunWith(tx)
+		Delete("t").RunWith(tx)
 	}, "RunWith(*sql.Tx) should not panic")
 }
