@@ -67,11 +67,11 @@ func (r *txRunner) QueryRow(query string, args ...interface{}) RowScanner {
 	return r.Tx.QueryRow(query, args...)
 }
 
-// RunnerNotSet is returned by methods that need a Runner if it isn't set.
-var RunnerNotSet = fmt.Errorf("cannot run; no Runner set (RunWith)")
+// ErrRunnerNotSet is returned by methods that need a Runner if it isn't set.
+var ErrRunnerNotSet = fmt.Errorf("cannot run; no Runner set (RunWith)")
 
-// RunnerNotQueryRunner is returned by QueryRow if the RunWith value doesn't implement QueryRower.
-var RunnerNotQueryRunner = fmt.Errorf("cannot QueryRow; Runner is not a QueryRower")
+// ErrRunnerNotQueryRunner is returned by QueryRow if the RunWith value doesn't implement QueryRower.
+var ErrRunnerNotQueryRunner = fmt.Errorf("cannot QueryRow; Runner is not a QueryRower")
 
 // ExecWith Execs the SQL returned by s with db.
 func ExecWith(db Execer, s Sqlizer) (res sql.Result, err error) {

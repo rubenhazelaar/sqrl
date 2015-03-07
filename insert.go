@@ -19,13 +19,21 @@ type InsertBuilder struct {
 	suffixes exprs
 }
 
+// NewInsertBuilder creates new instance of InsertBuilder
 func NewInsertBuilder(b StatementBuilderType) *InsertBuilder {
 	return &InsertBuilder{StatementBuilderType: b}
 }
 
+// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
+func (b *InsertBuilder) RunWith(runner BaseRunner) *InsertBuilder {
+	b.runWith = runner
+	return b
+}
+
+// Exec builds and Execs the query with the Runner set by RunWith.
 func (b *InsertBuilder) Exec() (sql.Result, error) {
 	if b.runWith == nil {
-		return nil, RunnerNotSet
+		return nil, ErrRunnerNotSet
 	}
 	return ExecWith(b.runWith, b)
 }
@@ -33,7 +41,7 @@ func (b *InsertBuilder) Exec() (sql.Result, error) {
 // Query builds and Querys the query with the Runner set by RunWith.
 func (b *InsertBuilder) Query() (*sql.Rows, error) {
 	if b.runWith == nil {
-		return nil, RunnerNotSet
+		return nil, ErrRunnerNotSet
 	}
 	return QueryWith(b.runWith, b)
 }
@@ -41,11 +49,11 @@ func (b *InsertBuilder) Query() (*sql.Rows, error) {
 // QueryRow builds and QueryRows the query with the Runner set by RunWith.
 func (b *InsertBuilder) QueryRow() RowScanner {
 	if b.runWith == nil {
-		return &Row{err: RunnerNotSet}
+		return &Row{err: ErrRunnerNotSet}
 	}
 	queryRower, ok := b.runWith.(QueryRower)
 	if !ok {
-		return &Row{err: RunnerNotQueryRunner}
+		return &Row{err: ErrRunnerNotQueryRunner}
 	}
 	return QueryRowWith(queryRower, b)
 }
@@ -61,16 +69,6 @@ func (b *InsertBuilder) PlaceholderFormat(f PlaceholderFormat) *InsertBuilder {
 	b.placeholderFormat = f
 	return b
 }
-
-// Runner methods
-
-// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
-func (b *InsertBuilder) RunWith(runner BaseRunner) *InsertBuilder {
-	b.runWith = runner
-	return b
-}
-
-// SQL methods
 
 // ToSql builds the query into a SQL string and bound args.
 func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {

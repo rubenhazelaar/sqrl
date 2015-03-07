@@ -26,13 +26,21 @@ type SelectBuilder struct {
 	suffixes    exprs
 }
 
+// NewSelectBuilder creates new instance of SelectBuilder
 func NewSelectBuilder(b StatementBuilderType) *SelectBuilder {
 	return &SelectBuilder{StatementBuilderType: b}
 }
 
+// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
+func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
+	b.runWith = runner
+	return b
+}
+
+// Exec builds and Execs the query with the Runner set by RunWith.
 func (b *SelectBuilder) Exec() (sql.Result, error) {
 	if b.runWith == nil {
-		return nil, RunnerNotSet
+		return nil, ErrRunnerNotSet
 	}
 	return ExecWith(b.runWith, b)
 }
@@ -40,7 +48,7 @@ func (b *SelectBuilder) Exec() (sql.Result, error) {
 // Query builds and Querys the query with the Runner set by RunWith.
 func (b *SelectBuilder) Query() (*sql.Rows, error) {
 	if b.runWith == nil {
-		return nil, RunnerNotSet
+		return nil, ErrRunnerNotSet
 	}
 	return QueryWith(b.runWith, b)
 }
@@ -48,11 +56,11 @@ func (b *SelectBuilder) Query() (*sql.Rows, error) {
 // QueryRow builds and QueryRows the query with the Runner set by RunWith.
 func (b *SelectBuilder) QueryRow() RowScanner {
 	if b.runWith == nil {
-		return &Row{err: RunnerNotSet}
+		return &Row{err: ErrRunnerNotSet}
 	}
 	queryRower, ok := b.runWith.(QueryRower)
 	if !ok {
-		return &Row{err: RunnerNotQueryRunner}
+		return &Row{err: ErrRunnerNotQueryRunner}
 	}
 	return QueryRowWith(queryRower, b)
 }
@@ -62,24 +70,12 @@ func (b *SelectBuilder) Scan(dest ...interface{}) error {
 	return b.QueryRow().Scan(dest...)
 }
 
-// Format methods
-
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
 // query.
 func (b *SelectBuilder) PlaceholderFormat(f PlaceholderFormat) *SelectBuilder {
 	b.placeholderFormat = f
 	return b
 }
-
-// Runner methods
-
-// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
-func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
-	b.runWith = runner
-	return b
-}
-
-// SQL methods
 
 // ToSql builds the query into a SQL string and bound args.
 func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {

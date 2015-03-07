@@ -38,6 +38,8 @@ func (b StatementBuilderType) RunWith(runner BaseRunner) StatementBuilderType {
 	return b
 }
 
+// StatementBuilder is a basic statement builder, holds global configuration options
+// like placeholder format or SQL runner
 var StatementBuilder = StatementBuilderType{placeholderFormat: Question}
 
 // Select returns a new SelectBuilder, optionally setting some result columns.

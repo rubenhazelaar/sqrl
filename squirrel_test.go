@@ -2,7 +2,6 @@ package squirrel
 
 import (
 	"database/sql"
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -23,8 +22,6 @@ type DBStub struct {
 	LastQueryRowSql  string
 	LastQueryRowArgs []interface{}
 }
-
-var StubError = fmt.Errorf("this is a stub; this is only a stub")
 
 func (s *DBStub) Prepare(query string) (*sql.Stmt, error) {
 	s.LastPrepareSql = query

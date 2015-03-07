@@ -99,7 +99,7 @@ func (b *CaseBuilder) When(when interface{}, then interface{}) *CaseBuilder {
 	return b
 }
 
-// What sets optional "ELSE ..." part for CASE construct
+// Else sets optional "ELSE ..." part for CASE construct
 func (b *CaseBuilder) Else(expr interface{}) *CaseBuilder {
 	b.elsePart = newPart(expr)
 	return b

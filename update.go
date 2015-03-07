@@ -30,18 +30,34 @@ type UpdateBuilder struct {
 	suffixes   exprs
 }
 
+// NewUpdateBuilder creates new instance of UpdateBuilder
 func NewUpdateBuilder(b StatementBuilderType) *UpdateBuilder {
 	return &UpdateBuilder{StatementBuilderType: b}
 }
 
+// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
+func (b *UpdateBuilder) RunWith(runner BaseRunner) *UpdateBuilder {
+	b.runWith = runner
+	return b
+}
+
+// Exec builds and Execs the query with the Runner set by RunWith.
 func (b *UpdateBuilder) Exec() (sql.Result, error) {
 	if b.runWith == nil {
-		return nil, RunnerNotSet
+		return nil, ErrRunnerNotSet
 	}
 
 	return ExecWith(b.runWith, b)
 }
 
+// PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
+// query.
+func (b *UpdateBuilder) PlaceholderFormat(f PlaceholderFormat) *UpdateBuilder {
+	b.placeholderFormat = f
+	return b
+}
+
+// ToSql builds the query into a SQL string and bound args.
 func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	if len(b.table) == 0 {
 		err = fmt.Errorf("update statements must specify a table")
@@ -109,23 +125,6 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 
 	sqlStr, err = b.placeholderFormat.ReplacePlaceholders(sql.String())
 	return
-}
-
-// Format methods
-
-// PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
-// query.
-func (b *UpdateBuilder) PlaceholderFormat(f PlaceholderFormat) *UpdateBuilder {
-	b.placeholderFormat = f
-	return b
-}
-
-// Runner methods
-
-// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
-func (b *UpdateBuilder) RunWith(runner BaseRunner) *UpdateBuilder {
-	b.runWith = runner
-	return b
 }
 
 // SQL methods

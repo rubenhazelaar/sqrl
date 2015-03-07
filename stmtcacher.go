@@ -5,7 +5,7 @@ import (
 	"sync"
 )
 
-// Prepareer is the interface that wraps the Prepare method.
+// Preparer is the interface that wraps the Prepare method.
 //
 // Prepare executes the given query as implemented by database/sql.Prepare.
 type Preparer interface {
@@ -71,6 +71,7 @@ func (sc *stmtCacher) QueryRow(query string, args ...interface{}) RowScanner {
 	return stmt.QueryRow(args...)
 }
 
+// DBProxyBeginner describes a DBProxy that can start transactions
 type DBProxyBeginner interface {
 	DBProxy
 	Begin() (*sql.Tx, error)
@@ -81,6 +82,7 @@ type stmtCacheProxy struct {
 	db *sql.DB
 }
 
+// NewStmtCacheProxy creates new cache proxy for statements
 func NewStmtCacheProxy(db *sql.DB) DBProxyBeginner {
 	return &stmtCacheProxy{DBProxy: NewStmtCacher(db), db: db}
 }

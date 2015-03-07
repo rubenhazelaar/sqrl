@@ -119,6 +119,7 @@ func (eq Eq) toSql(useNotOpr bool) (sql string, args []interface{}, err error) {
 	return
 }
 
+// ToSql builds the query into a SQL string and bound args.
 func (eq Eq) ToSql() (sql string, args []interface{}, err error) {
 	return eq.toSql(false)
 }
@@ -128,6 +129,7 @@ func (eq Eq) ToSql() (sql string, args []interface{}, err error) {
 //     .Where(NotEq{"id": 1}) == "id <> 1"
 type NotEq Eq
 
+// ToSql builds the query into a SQL string and bound args.
 func (neq NotEq) ToSql() (sql string, args []interface{}, err error) {
 	return Eq(neq).toSql(true)
 }
@@ -152,14 +154,22 @@ func (c conj) join(sep string) (sql string, args []interface{}, err error) {
 	return
 }
 
+// And is syntactic sugar that glues where/having parts with AND clause
+// Ex:
+//     .Where(And{Expr("a > ?", 15), Expr("b < ?", 20), Expr("c is TRUE")})
 type And conj
 
+// ToSql builds the query into a SQL string and bound args.
 func (a And) ToSql() (string, []interface{}, error) {
 	return conj(a).join(" AND ")
 }
 
+// Or is syntactic sugar that glues where/having parts with OR clause
+// Ex:
+//     .Where(And{Expr("a > ?", 15), Expr("b < ?", 20), Expr("c is TRUE")})
 type Or conj
 
+// ToSql builds the query into a SQL string and bound args.
 func (o Or) ToSql() (string, []interface{}, error) {
 	return conj(o).join(" OR ")
 }

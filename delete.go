@@ -23,15 +23,30 @@ type DeleteBuilder struct {
 	suffixes   exprs
 }
 
+// NewDeleteBuilder creates new instance of DeleteBuilder
 func NewDeleteBuilder(b StatementBuilderType) *DeleteBuilder {
 	return &DeleteBuilder{StatementBuilderType: b}
 }
 
+// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
+func (b *DeleteBuilder) RunWith(runner BaseRunner) *DeleteBuilder {
+	b.runWith = runner
+	return b
+}
+
+// Exec builds and Execs the query with the Runner set by RunWith.
 func (b *DeleteBuilder) Exec() (sql.Result, error) {
 	if b.runWith == nil {
-		return nil, RunnerNotSet
+		return nil, ErrRunnerNotSet
 	}
 	return ExecWith(b.runWith, b)
+}
+
+// PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
+// query.
+func (b *DeleteBuilder) PlaceholderFormat(f PlaceholderFormat) *DeleteBuilder {
+	b.placeholderFormat = f
+	return b
 }
 
 // ToSql builds the query into a SQL string and bound args.
@@ -84,25 +99,6 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	return
 }
 
-// Format methods
-
-// PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
-// query.
-func (b *DeleteBuilder) PlaceholderFormat(f PlaceholderFormat) *DeleteBuilder {
-	b.placeholderFormat = f
-	return b
-}
-
-// Runner methods
-
-// RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
-func (b *DeleteBuilder) RunWith(runner BaseRunner) *DeleteBuilder {
-	b.runWith = runner
-	return b
-}
-
-// SQL methods
-
 // Prefix adds an expression to the beginning of the query
 func (b *DeleteBuilder) Prefix(sql string, args ...interface{}) *DeleteBuilder {
 	b.prefixes = append(b.prefixes, Expr(sql, args...))
@@ -116,8 +112,6 @@ func (b *DeleteBuilder) From(from string) *DeleteBuilder {
 }
 
 // Where adds WHERE expressions to the query.
-//
-// See DeleteBuilder.Where for more information.
 func (b *DeleteBuilder) Where(pred interface{}, args ...interface{}) *DeleteBuilder {
 	b.whereParts = append(b.whereParts, newWherePart(pred, args...))
 	return b
