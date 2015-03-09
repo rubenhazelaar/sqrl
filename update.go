@@ -25,9 +25,13 @@ type UpdateBuilder struct {
 	setClauses []setClause
 	whereParts []Sqlizer
 	orderBys   []string
-	limit      uint64
-	offset     uint64
-	suffixes   exprs
+
+	limit       uint64
+	limitValid  bool
+	offset      uint64
+	offsetValid bool
+
+	suffixes exprs
 }
 
 // NewUpdateBuilder creates new instance of UpdateBuilder
@@ -108,12 +112,12 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 
 	// TODO: limit == 0 and offswt == 0 are valid. Need to go dbr way and implement offsetValid and limitValid
-	if b.limit > 0 {
+	if b.limitValid {
 		sql.WriteString(" LIMIT ")
 		sql.WriteString(strconv.FormatUint(b.limit, 10))
 	}
 
-	if b.offset > 0 {
+	if b.offsetValid {
 		sql.WriteString(" OFFSET ")
 		sql.WriteString(strconv.FormatUint(b.offset, 10))
 	}
@@ -180,12 +184,14 @@ func (b *UpdateBuilder) OrderBy(orderBys ...string) *UpdateBuilder {
 // Limit sets a LIMIT clause on the query.
 func (b *UpdateBuilder) Limit(limit uint64) *UpdateBuilder {
 	b.limit = limit
+	b.limitValid = true
 	return b
 }
 
 // Offset sets a OFFSET clause on the query.
 func (b *UpdateBuilder) Offset(offset uint64) *UpdateBuilder {
 	b.offset = offset
+	b.offsetValid = true
 	return b
 }
 

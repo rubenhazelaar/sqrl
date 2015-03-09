@@ -1,8 +1,6 @@
 package squirrel
 
-import (
-	"fmt"
-)
+import "fmt"
 
 type wherePart part
 

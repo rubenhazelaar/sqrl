@@ -18,9 +18,13 @@ type DeleteBuilder struct {
 	from       string
 	whereParts []Sqlizer
 	orderBys   []string
-	limit      uint64
-	offset     uint64
-	suffixes   exprs
+
+	limit       uint64
+	limitValid  bool
+	offset      uint64
+	offsetValid bool
+
+	suffixes exprs
 }
 
 // NewDeleteBuilder creates new instance of DeleteBuilder
@@ -80,12 +84,12 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 
 	// TODO: limit == 0 and offswt == 0 are valid. Need to go dbr way and implement offsetValid and limitValid
-	if b.limit > 0 {
+	if b.limitValid {
 		sql.WriteString(" LIMIT ")
 		sql.WriteString(strconv.FormatUint(b.limit, 10))
 	}
 
-	if b.offset > 0 {
+	if b.offsetValid {
 		sql.WriteString(" OFFSET ")
 		sql.WriteString(strconv.FormatUint(b.offset, 10))
 	}
@@ -126,12 +130,15 @@ func (b *DeleteBuilder) OrderBy(orderBys ...string) *DeleteBuilder {
 // Limit sets a LIMIT clause on the query.
 func (b *DeleteBuilder) Limit(limit uint64) *DeleteBuilder {
 	b.limit = limit
+	b.limitValid = true
 	return b
 }
 
 // Offset sets a OFFSET clause on the query.
 func (b *DeleteBuilder) Offset(offset uint64) *DeleteBuilder {
 	b.offset = offset
+	b.offsetValid = true
+
 	return b
 }
 

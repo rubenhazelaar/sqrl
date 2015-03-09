@@ -83,6 +83,19 @@ func BenchmarkSelectBuilderToSql(b *testing.B) {
 	}
 }
 
+func TestSelectBuilderZeroOffsetLimit(t *testing.T) {
+	qb := Select("a").
+		From("b").
+		Limit(0).
+		Offset(0)
+
+	sql, _, err := qb.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "SELECT a FROM b LIMIT 0 OFFSET 0"
+	assert.Equal(t, expectedSql, sql)
+}
+
 func TestSelectBuilderToSqlErr(t *testing.T) {
 	_, _, err := Select().From("x").ToSql()
 	assert.Error(t, err)

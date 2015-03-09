@@ -21,9 +21,13 @@ type SelectBuilder struct {
 	groupBys    []string
 	havingParts []Sqlizer
 	orderBys    []string
+
 	limit       uint64
+	limitValid  bool
 	offset      uint64
-	suffixes    exprs
+	offsetValid bool
+
+	suffixes exprs
 }
 
 // NewSelectBuilder creates new instance of SelectBuilder
@@ -141,12 +145,12 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 
 	// TODO: limit == 0 and offswt == 0 are valid. Need to go dbr way and implement offsetValid and limitValid
-	if b.limit > 0 {
+	if b.limitValid {
 		sql.WriteString(" LIMIT ")
 		sql.WriteString(strconv.FormatUint(b.limit, 10))
 	}
 
-	if b.offset > 0 {
+	if b.offsetValid {
 		sql.WriteString(" OFFSET ")
 		sql.WriteString(strconv.FormatUint(b.offset, 10))
 	}
@@ -269,12 +273,14 @@ func (b *SelectBuilder) OrderBy(orderBys ...string) *SelectBuilder {
 // Limit sets a LIMIT clause on the query.
 func (b *SelectBuilder) Limit(limit uint64) *SelectBuilder {
 	b.limit = limit
+	b.limitValid = true
 	return b
 }
 
 // Offset sets a OFFSET clause on the query.
 func (b *SelectBuilder) Offset(offset uint64) *SelectBuilder {
 	b.offset = offset
+	b.offsetValid = true
 	return b
 }
 

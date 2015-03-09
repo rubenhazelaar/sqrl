@@ -29,6 +29,19 @@ func TestDeleteBuilderToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestDeleteBuilderZeroOffsetLimit(t *testing.T) {
+	qb := Delete("").
+		From("b").
+		Limit(0).
+		Offset(0)
+
+	sql, _, err := qb.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "DELETE FROM b LIMIT 0 OFFSET 0"
+	assert.Equal(t, expectedSql, sql)
+}
+
 func TestDeleteBuilderToSqlErr(t *testing.T) {
 	_, _, err := Delete("").ToSql()
 	assert.Error(t, err)
