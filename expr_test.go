@@ -1,9 +1,10 @@
-package squirrel
+package sqrl
 
 import (
 	"database/sql"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestEqToSql(t *testing.T) {
