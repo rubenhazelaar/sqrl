@@ -1,13 +1,13 @@
-# Lite Squirrel - fat-free version of fluent SQL generator for Go
+# sqrl - fat-free version of squirrel - fluent SQL generator for Go
 
-**Non thread safe** fork of [squirrel](http://github.com/lann/squirrel)
+**Non thread safe** fork of [squirrel](http://github.com/lann/squirrel). The same handy fluffy helper, but with extra letters removed :)
 
 ```go
-import "github.com/elgris/squirrel"
+import "github.com/elgris/sqrl"
 ```
 
-[![GoDoc](https://godoc.org/github.com/elgris/squirrel?status.png)](https://godoc.org/github.com/elgris/squirrel)
-[![Build Status](https://travis-ci.org/elgris/squirrel.png?branch=master)](https://travis-ci.org/elgris/squirrel)
+[![GoDoc](https://godoc.org/github.com/elgris/sqrl?status.png)](https://godoc.org/github.com/elgris/sqrl)
+[![Build Status](https://travis-ci.org/elgris/sqrl.png?branch=master)](https://travis-ci.org/elgris/sqrl)
 
 ## Inspired by
 
@@ -20,18 +20,18 @@ Ask [benchmarks](github.com/elgris/golang-sql-builder-benchmark) about that ;). 
 
 ## Why not to use dbr then?
 
-Although, `dbr`'s query builder is proven to be much [faster than squirrel](https://github.com/tyler-smith/golang-sql-benchmark) and even faster than [lite squirrel](https://github.com/elgris/golang-sql-builder-benchmark), it doesn't have all syntax sugar. Especially I miss support of JOINs, subqueries and aliases.
+Although, `dbr`'s query builder is proven to be much [faster than squirrel](https://github.com/tyler-smith/golang-sql-benchmark) and even faster than [sqrl](https://github.com/elgris/golang-sql-builder-benchmark), it doesn't have all syntax sugar. Especially I miss support of JOINs, subqueries and aliases.
 Second reason is `dbr`'s sweet query builder requires `Session` which requires established database connection. I don't want to connect to database when I need to generate SQL string. Basically I prefer using one tool to generate SQL qurty and anither one to run it.
 
 ## Usage
 
-**Squirrel is not an ORM.**, it helps you build SQL queries from composable parts.
-**Squirrel lite is non thread safe**. SQL builder change their state, so using the same builder in parallel is dangerous.
+**sqrl is not an ORM.**, it helps you build SQL queries from composable parts.
+**sqrl is non thread safe**. SQL builders change their state, so using the same builder in parallel is dangerous.
 
-It's very easy to switch between original squirrel and light one, because there is no change in interface:
+It's very easy to switch between original squirrel and sqrl, because there is no change in interface:
 
 ```go
-import sq "github.com/elgris/squirrel" // you can easily use github.com/lann/squirrel here
+import sq "github.com/elgris/sqrl" // you can easily use github.com/lann/squirrel here
 
 users := sq.Select("*").From("users").Join("emails USING (email_id)")
 
@@ -51,7 +51,7 @@ sql, args, err := sq.
 sql == "INSERT INTO users (name,age) VALUES (?,?),(?,? + 5)"
 ```
 
-Squirrel can also execute queries directly:
+Like [squirrel](https://github.com/lann/squirrel), sqrl can execute queries directly:
 
 ```go
 stooges := users.Where(sq.Eq{"username": []string{"moe", "larry", "curly", "shemp"}})
@@ -59,11 +59,10 @@ three_stooges := stooges.Limit(3)
 rows, err := three_stooges.RunWith(db).Query()
 
 // Behaves like:
-rows, err := db.Query("SELECT * FROM users WHERE username IN (?,?,?,?) LIMIT 3",
-                      "moe", "larry", "curly", "shemp")
+rows, err := db.Query("SELECT * FROM users WHERE username IN (?,?,?,?) LIMIT 3", "moe", "larry", "curly", "shemp")
 ```
 
-Squirrel makes conditional query building a breeze:
+Build conditional queries with ease:
 
 ```go
 if len(q) > 0 {
@@ -73,5 +72,5 @@ if len(q) > 0 {
 
 ## License
 
-Squirrel is released under the
+Sqrl is released under the
 [MIT License](http://www.opensource.org/licenses/MIT).
