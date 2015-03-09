@@ -1,4 +1,4 @@
-package squirrel
+package sqrl
 
 // RowScanner is the interface that wraps the Scan method.
 //

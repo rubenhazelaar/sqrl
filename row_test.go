@@ -1,4 +1,4 @@
-package squirrel
+package sqrl
 
 import (
 	"fmt"
