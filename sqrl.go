@@ -1,6 +1,6 @@
 // package sqrl provides a fluent SQL generator.
 //
-// See https://github.com/elgris/squirrel for examples.
+// See https://github.com/elgris/sqrl for examples.
 package sqrl
 
 import (
