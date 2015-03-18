@@ -16,7 +16,7 @@ import "github.com/elgris/sqrl"
 
 ## Why to make good squirrel lighter?
 
-Ask [benchmarks](github.com/elgris/golang-sql-builder-benchmark) about that ;). Squirrel is good, reliable and thread-safe with it's immutable query builder. Although immutability is nice, it's resource consuming and sometimes redundant. As authors of `dbr` say: "100% of our application code was written without the need for this".
+Ask [benchmarks](https://github.com/elgris/golang-sql-builder-benchmark) about that ;). Squirrel is good, reliable and thread-safe with it's immutable query builder. Although immutability is nice, it's resource consuming and sometimes redundant. As authors of `dbr` say: "100% of our application code was written without the need for this".
 
 ## Why not to use dbr then?
 
