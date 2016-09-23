@@ -109,6 +109,6 @@ func TestNullTypeInt64(t *testing.T) {
 	sql, args, err = b.ToSql()
 
 	assert.NoError(t, err)
-	assert.Equal(t, []interface{}{10}, args)
+	assert.Equal(t, []interface{}{int64(10)}, args)
 	assert.Equal(t, "user_id = ?", sql)
 }

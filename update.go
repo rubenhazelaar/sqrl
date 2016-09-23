@@ -86,13 +86,17 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	setSqls := make([]string, len(b.setClauses))
 	for i, setClause := range b.setClauses {
 		var valSql string
-		e, isExpr := setClause.value.(expr)
-		if isExpr {
-			valSql = e.sql
-			args = append(args, e.args...)
-		} else {
+		switch typedVal := setClause.value.(type) {
+		case Sqlizer:
+			var valArgs []interface{}
+			valSql, valArgs, err = typedVal.ToSql()
+			if err != nil {
+				return
+			}
+			args = append(args, valArgs...)
+		default:
 			valSql = "?"
-			args = append(args, setClause.value)
+			args = append(args, typedVal)
 		}
 		setSqls[i] = fmt.Sprintf("%s = %s", setClause.column, valSql)
 	}
