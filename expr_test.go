@@ -112,3 +112,19 @@ func TestNullTypeInt64(t *testing.T) {
 	assert.Equal(t, []interface{}{int64(10)}, args)
 	assert.Equal(t, "user_id = ?", sql)
 }
+
+type dummySqlizer int
+
+func (d dummySqlizer) ToSql() (string, []interface{}, error) {
+	return "DUMMY(?, ?)", []interface{}{int(d), int(d)}, nil
+}
+
+func TestExprSqlizer(t *testing.T) {
+	b := Expr("EXISTS(?)", dummySqlizer(42))
+	sql, args, err := b.ToSql()
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, "EXISTS(DUMMY(?, ?))", sql)
+		assert.Equal(t, []interface{}{42, 42}, args)
+	}
+}
