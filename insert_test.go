@@ -11,6 +11,7 @@ func TestInsertBuilderToSql(t *testing.T) {
 		Prefix("WITH prefix AS ?", 0).
 		Into("a").
 		Options("DELAYED", "IGNORE").
+		Output("b", "c").
 		Columns("b", "c").
 		Values(1, 2).
 		Values(3, Expr("? + 1", 4)).
@@ -21,7 +22,7 @@ func TestInsertBuilderToSql(t *testing.T) {
 
 	expectedSql :=
 		"WITH prefix AS ? " +
-			"INSERT DELAYED IGNORE INTO a (b,c) VALUES (?,?),(?,? + 1) " +
+			"INSERT DELAYED IGNORE OUTPUT INSERTED.b INSERTED.c INTO a (b,c) VALUES (?,?),(?,? + 1) " +
 			"RETURNING ?"
 	assert.Equal(t, expectedSql, sql)
 

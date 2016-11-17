@@ -11,12 +11,13 @@ import (
 type InsertBuilder struct {
 	StatementBuilderType
 
-	prefixes exprs
-	options  []string
-	into     string
-	columns  []string
-	values   [][]interface{}
-	suffixes exprs
+	prefixes      exprs
+	options       []string
+	into          string
+	columns       []string
+	values        [][]interface{}
+	suffixes      exprs
+	outputColumns []string
 }
 
 // NewInsertBuilder creates new instance of InsertBuilder
@@ -92,6 +93,12 @@ func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 
 	if len(b.options) > 0 {
 		sql.WriteString(strings.Join(b.options, " "))
+		sql.WriteString(" ")
+	}
+
+	if len(b.outputColumns) > 0 {
+		sql.WriteString("OUTPUT ")
+		sql.WriteString(strings.Join(b.outputColumns, " "))
 		sql.WriteString(" ")
 	}
 
@@ -194,6 +201,15 @@ func (b *InsertBuilder) SetMap(clauses map[string]interface{}) *InsertBuilder {
 
 	b.columns = cols
 	b.values = [][]interface{}{vals}
+
+	return b
+}
+
+// Output adds an OUTPUT clause to the query
+func (b *InsertBuilder) Output(columns ...string) *InsertBuilder {
+	for _, str := range columns {
+		b.outputColumns = append(b.outputColumns, "INSERTED." + str)
+	}
 
 	return b
 }
