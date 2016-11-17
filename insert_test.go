@@ -22,7 +22,7 @@ func TestInsertBuilderToSql(t *testing.T) {
 
 	expectedSql :=
 		"WITH prefix AS ? " +
-			"INSERT DELAYED IGNORE OUTPUT INSERTED.b INSERTED.c INTO a (b,c) VALUES (?,?),(?,? + 1) " +
+			"INSERT DELAYED IGNORE INTO a (b,c) OUTPUT INSERTED.b, INSERTED.c VALUES (?,?),(?,? + 1) " +
 			"RETURNING ?"
 	assert.Equal(t, expectedSql, sql)
 

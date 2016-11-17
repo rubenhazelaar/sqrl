@@ -96,12 +96,6 @@ func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(" ")
 	}
 
-	if len(b.outputColumns) > 0 {
-		sql.WriteString("OUTPUT ")
-		sql.WriteString(strings.Join(b.outputColumns, " "))
-		sql.WriteString(" ")
-	}
-
 	sql.WriteString("INTO ")
 	sql.WriteString(b.into)
 	sql.WriteString(" ")
@@ -110,6 +104,12 @@ func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString("(")
 		sql.WriteString(strings.Join(b.columns, ","))
 		sql.WriteString(") ")
+	}
+
+	if len(b.outputColumns) > 0 {
+		sql.WriteString("OUTPUT ")
+		sql.WriteString(strings.Join(b.outputColumns, ", "))
+		sql.WriteString(" ")
 	}
 
 	sql.WriteString("VALUES ")
