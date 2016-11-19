@@ -11,6 +11,7 @@ func TestSelectBuilderToSql(t *testing.T) {
 	b := Select("a", "b").
 		Prefix("WITH prefix AS ?", 0).
 		Distinct().
+		Top(5).
 		Columns("c").
 		Column("IF(d IN ("+Placeholders(3)+"), 1, 0) as stat_column", 1, 2, 3).
 		Column(Expr("a > ?", 100)).
@@ -38,7 +39,7 @@ func TestSelectBuilderToSql(t *testing.T) {
 
 	expectedSql :=
 		"WITH prefix AS ? " +
-			"SELECT DISTINCT a, b, c, IF(d IN (?,?,?), 1, 0) as stat_column, a > ?, " +
+			"SELECT DISTINCT TOP 5 a, b, c, IF(d IN (?,?,?), 1, 0) as stat_column, a > ?, " +
 			"(b IN (?,?,?)) AS b_alias, " +
 			"(SELECT aa, bb FROM dd) AS subq " +
 			"FROM e " +
@@ -58,6 +59,7 @@ func BenchmarkSelectBuilderToSql(b *testing.B) {
 		qb := Select("a", "b").
 			Prefix("WITH prefix AS ?", 0).
 			Distinct().
+			Top(5).
 			Columns("c").
 			Column("IF(d IN ("+Placeholders(3)+"), 1, 0) as stat_column", 1, 2, 3).
 			Column(Expr("a > ?", 100)).

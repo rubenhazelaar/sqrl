@@ -28,6 +28,9 @@ type SelectBuilder struct {
 	offsetValid bool
 
 	suffixes exprs
+
+	top      uint64
+	topValid bool
 }
 
 // NewSelectBuilder creates new instance of SelectBuilder
@@ -99,6 +102,12 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 
 	if b.distinct {
 		sql.WriteString("DISTINCT ")
+	}
+
+	if b.topValid {
+		sql.WriteString("TOP ")
+		sql.WriteString(strconv.FormatUint(b.top, 10))
+		sql.WriteString(" ")
 	}
 
 	if len(b.columns) > 0 {
@@ -288,5 +297,11 @@ func (b *SelectBuilder) Offset(offset uint64) *SelectBuilder {
 func (b *SelectBuilder) Suffix(sql string, args ...interface{}) *SelectBuilder {
 	b.suffixes = append(b.suffixes, Expr(sql, args...))
 
+	return b
+}
+
+func (b *SelectBuilder) Top(top uint64) *SelectBuilder {
+	b.top = top
+	b.topValid = true
 	return b
 }
