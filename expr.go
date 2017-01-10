@@ -99,7 +99,7 @@ func (e aliasExpr) ToSql() (sql string, args []interface{}, err error) {
 //     .Where(Eq{"id": 1})
 type Eq map[string]interface{}
 
-func (eq Eq) toSql(useNotOpr bool) (sql string, args []interface{}, err error) {
+func (eq Eq) toSql(useNotOpr bool, useOr bool) (sql string, args []interface{}, err error) {
 	var (
 		exprs    []string
 		equalOpr string = "="
@@ -143,13 +143,19 @@ func (eq Eq) toSql(useNotOpr bool) (sql string, args []interface{}, err error) {
 		}
 		exprs = append(exprs, expr)
 	}
-	sql = strings.Join(exprs, " AND ")
+
+	if useOr {
+		sql = strings.Join(exprs, " OR ")
+	} else {
+		sql = strings.Join(exprs, " AND ")
+	}
+
 	return
 }
 
 // ToSql builds the query into a SQL string and bound args.
 func (eq Eq) ToSql() (sql string, args []interface{}, err error) {
-	return eq.toSql(false)
+	return eq.toSql(false, false)
 }
 
 // NotEq is syntactic sugar for use with Where/Having/Set methods.
@@ -159,7 +165,17 @@ type NotEq Eq
 
 // ToSql builds the query into a SQL string and bound args.
 func (neq NotEq) ToSql() (sql string, args []interface{}, err error) {
-	return Eq(neq).toSql(true)
+	return Eq(neq).toSql(true, false)
+}
+
+// EqOr is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(NotEq{"id": 1, "name": "Joe"}) == "id = 1 OR name = 'Joe'"
+type EqOr Eq
+
+// ToSql builds the query into a SQL string and bound args.
+func (eqor EqOr) ToSql() (sql string, args []interface{}, err error) {
+	return Eq(eqor).toSql(false, true)
 }
 
 type conj []Sqlizer

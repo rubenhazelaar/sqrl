@@ -55,6 +55,21 @@ func TestEqNotInToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestEqOrInToSql(t *testing.T) {
+	b := EqOr{
+		"id": []int{1, 2, 3},
+		"name": "Joe",
+	}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "id IN (?,?,?) OR name = ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1, 2, 3, "Joe"}
+	assert.Equal(t, expectedArgs, args)
+}
+
 func TestExprNilToSql(t *testing.T) {
 	var b Sqlizer
 	b = NotEq{"name": nil}
