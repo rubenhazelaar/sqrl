@@ -23,6 +23,7 @@ type UpdateBuilder struct {
 	prefixes   exprs
 	table      string
 	setClauses []setClause
+	joins      []string
 	whereParts []Sqlizer
 	orderBys   []string
 
@@ -102,6 +103,14 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 	sql.WriteString(strings.Join(setSqls, ", "))
 
+	// Uses SQL Server proprietary syntax
+	if len(b.joins) > 0 {
+		sql.WriteString(" FROM ")
+		sql.WriteString(b.table)
+		sql.WriteString(" ")
+		sql.WriteString(strings.Join(b.joins, " "))
+	}
+
 	if len(b.whereParts) > 0 {
 		sql.WriteString(" WHERE ")
 		args, err = appendToSql(b.whereParts, sql, " AND ", args)
@@ -169,6 +178,29 @@ func (b *UpdateBuilder) SetMap(clauses map[string]interface{}) *UpdateBuilder {
 		b = b.Set(key, val)
 	}
 	return b
+}
+
+// Used with SQL SERVER prorietary syntax
+// JoinClause adds a join clause to the query.
+func (b *UpdateBuilder) JoinClause(join string) *UpdateBuilder {
+	b.joins = append(b.joins, join)
+
+	return b
+}
+
+// Join adds a JOIN clause to the query.
+func (b *UpdateBuilder) Join(join string) *UpdateBuilder {
+	return b.JoinClause("JOIN " + join)
+}
+
+// LeftJoin adds a LEFT JOIN clause to the query.
+func (b *UpdateBuilder) LeftJoin(join string) *UpdateBuilder {
+	return b.JoinClause("LEFT JOIN " + join)
+}
+
+// RightJoin adds a RIGHT JOIN clause to the query.
+func (b *UpdateBuilder) RightJoin(join string) *UpdateBuilder {
+	return b.JoinClause("RIGHT JOIN " + join)
 }
 
 // Where adds WHERE expressions to the query.
