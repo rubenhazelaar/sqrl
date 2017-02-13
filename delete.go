@@ -16,6 +16,7 @@ type DeleteBuilder struct {
 
 	prefixes   exprs
 	from       string
+	using	   []string
 	whereParts []Sqlizer
 	orderBys   []string
 
@@ -70,6 +71,11 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	sql.WriteString("DELETE FROM ")
 	sql.WriteString(b.from)
 
+	if len(b.using) > 0 {
+		sql.WriteString(" USING ")
+		sql.WriteString(strings.Join(b.using,","))
+	}
+
 	if len(b.whereParts) > 0 {
 		sql.WriteString(" WHERE ")
 		args, err = appendToSql(b.whereParts, sql, " AND ", args)
@@ -112,6 +118,12 @@ func (b *DeleteBuilder) Prefix(sql string, args ...interface{}) *DeleteBuilder {
 // From sets the FROM clause of the query.
 func (b *DeleteBuilder) From(from string) *DeleteBuilder {
 	b.from = from
+	return b
+}
+
+// Set Postgres USING clause of the query
+func (b *DeleteBuilder) Using(tables ...string) *DeleteBuilder {
+	b.using = append(b.using, tables...)
 	return b
 }
 
