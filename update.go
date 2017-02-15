@@ -23,6 +23,7 @@ type UpdateBuilder struct {
 	prefixes   exprs
 	table      string
 	setClauses []setClause
+	from []string
 	joins      []string
 	whereParts []Sqlizer
 	orderBys   []string
@@ -103,6 +104,12 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 	sql.WriteString(strings.Join(setSqls, ", "))
 
+	// Uses Postgresql syntax
+	if len(b.from) > 0 {
+		sql.WriteString(" FROM ")
+		sql.WriteString(strings.Join(b.from,","))
+	}
+
 	// Uses SQL Server proprietary syntax
 	if len(b.joins) > 0 {
 		sql.WriteString(" FROM ")
@@ -177,6 +184,13 @@ func (b *UpdateBuilder) SetMap(clauses map[string]interface{}) *UpdateBuilder {
 		val, _ := clauses[key]
 		b = b.Set(key, val)
 	}
+	return b
+}
+
+// Used with Postgres syntax
+func (b *UpdateBuilder) From(from ...string) *UpdateBuilder {
+	b.from = append(b.from, from...)
+
 	return b
 }
 
