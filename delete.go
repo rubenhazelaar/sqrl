@@ -15,7 +15,9 @@ type DeleteBuilder struct {
 	StatementBuilderType
 
 	prefixes   exprs
+	what       []string
 	from       string
+	joins      []string
 	whereParts []Sqlizer
 	orderBys   []string
 
@@ -67,8 +69,19 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(" ")
 	}
 
-	sql.WriteString("DELETE FROM ")
+	sql.WriteString("DELETE ")
+	if len(b.what) > 0 {
+		sql.WriteString(strings.Join(b.what, ", "))
+		sql.WriteString(" ")
+	}
+
+	sql.WriteString("FROM ")
 	sql.WriteString(b.from)
+
+	if len(b.joins) > 0 {
+		sql.WriteString(" ")
+		sql.WriteString(strings.Join(b.joins, " "))
+	}
 
 	if len(b.whereParts) > 0 {
 		sql.WriteString(" WHERE ")
@@ -115,6 +128,23 @@ func (b *DeleteBuilder) From(from string) *DeleteBuilder {
 	return b
 }
 
+// What sets names of tables to be used for deleting from
+func (b *DeleteBuilder) What(what ...string) *DeleteBuilder {
+	filteredWhat := make([]string, 0, len(what))
+	for _, item := range what {
+		if len(item) > 0 {
+			filteredWhat = append(filteredWhat, item)
+		}
+	}
+
+	if len(filteredWhat) == 1 {
+		return b.From(filteredWhat[0])
+	}
+
+	b.what = filteredWhat
+	return b
+}
+
 // Where adds WHERE expressions to the query.
 func (b *DeleteBuilder) Where(pred interface{}, args ...interface{}) *DeleteBuilder {
 	b.whereParts = append(b.whereParts, newWherePart(pred, args...))
@@ -147,4 +177,26 @@ func (b *DeleteBuilder) Suffix(sql string, args ...interface{}) *DeleteBuilder {
 	b.suffixes = append(b.suffixes, Expr(sql, args...))
 
 	return b
+}
+
+// JoinClause adds a join clause to the query.
+func (b *DeleteBuilder) JoinClause(join string) *DeleteBuilder {
+	b.joins = append(b.joins, join)
+
+	return b
+}
+
+// Join adds a JOIN clause to the query.
+func (b *DeleteBuilder) Join(join string) *DeleteBuilder {
+	return b.JoinClause("JOIN " + join)
+}
+
+// LeftJoin adds a LEFT JOIN clause to the query.
+func (b *DeleteBuilder) LeftJoin(join string) *DeleteBuilder {
+	return b.JoinClause("LEFT JOIN " + join)
+}
+
+// RightJoin adds a RIGHT JOIN clause to the query.
+func (b *DeleteBuilder) RightJoin(join string) *DeleteBuilder {
+	return b.JoinClause("RIGHT JOIN " + join)
 }

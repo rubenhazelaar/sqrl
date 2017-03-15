@@ -29,6 +29,56 @@ func TestDeleteBuilderToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestDeleteOneFrom(t *testing.T) {
+	b := Delete("b").
+		From("a").
+		Where("b = ?", 1)
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "DELETE FROM a WHERE b = ?"
+	assert.Equal(t, expectedSql, sql)
+	expectedArgs := []interface{}{1}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestDeleteWithoutFrom(t *testing.T) {
+	b := Delete("a").
+		Where("b = ?", 1)
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "DELETE FROM a WHERE b = ?"
+	assert.Equal(t, expectedSql, sql)
+	expectedArgs := []interface{}{1}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestDeleteSqlMultipleTables(t *testing.T) {
+	b := Delete("a1", "a2").
+		From("z1 AS a1").
+		JoinClause("INNER JOIN a2 ON a1.id = a2.ref_id").
+		Join("a3").
+		Where("b = ?", 1)
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql :=
+		"DELETE a1, a2 " +
+			"FROM z1 AS a1 " +
+			"INNER JOIN a2 ON a1.id = a2.ref_id " +
+			"JOIN a3 " +
+			"WHERE b = ?"
+
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1}
+	assert.Equal(t, expectedArgs, args)
+}
+
 func TestDeleteBuilderZeroOffsetLimit(t *testing.T) {
 	qb := Delete("").
 		From("b").
