@@ -69,6 +69,18 @@ if len(q) > 0 {
 }
 ```
 
+### MySQL-specific functions
+
+#### [Multi-table delete](https://dev.mysql.com/doc/refman/5.7/en/delete.html)
+
+```go
+sql, args, err := sq.Delete("a1", "a2").
+    From("z1 AS a1").
+    JoinClause("INNER JOIN a2 ON a1.id = a2.ref_id").
+    Where("b = ?", 1).
+    ToSql()
+```
+
 ## License
 
 Sqrl is released under the
