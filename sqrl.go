@@ -83,6 +83,9 @@ var ErrRunnerNotSet = fmt.Errorf("cannot run; no Runner set (RunWith)")
 // ErrRunnerNotQueryRunner is returned by QueryRow if the RunWith value doesn't implement QueryRower.
 var ErrRunnerNotQueryRunner = fmt.Errorf("cannot QueryRow; Runner is not a QueryRower")
 
+// ErrRunnerNotQueryRunnerContext is returned by QueryRowContext if the RunWith value doesn't implement QueryRowerContext.
+var ErrRunnerNotQueryRunnerContext = fmt.Errorf("cannot QueryRow; Runner is not a QueryRowerContext")
+
 // ExecWith Execs the SQL returned by s with db.
 func ExecWith(db Execer, s Sqlizer) (res sql.Result, err error) {
 	query, args, err := s.ToSql()

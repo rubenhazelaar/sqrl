@@ -2,6 +2,7 @@ package sqrl
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"strings"
@@ -32,30 +33,45 @@ func (b *InsertBuilder) RunWith(runner BaseRunner) *InsertBuilder {
 
 // Exec builds and Execs the query with the Runner set by RunWith.
 func (b *InsertBuilder) Exec() (sql.Result, error) {
+	return b.ExecContext(context.Background())
+}
+
+// Exec builds and Execs the query with the Runner set by RunWith using given context.
+func (b *InsertBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
-	return ExecWith(b.runWith, b)
+	return ExecWithContext(ctx, b.runWith, b)
 }
 
 // Query builds and Querys the query with the Runner set by RunWith.
 func (b *InsertBuilder) Query() (*sql.Rows, error) {
+	return b.QueryContext(context.Background())
+}
+
+// QueryContext builds and runs the query using given context and Query command.
+func (b *InsertBuilder) QueryContext(ctx context.Context) (*sql.Rows, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
-	return QueryWith(b.runWith, b)
+	return QueryWithContext(ctx, b.runWith, b)
 }
 
 // QueryRow builds and QueryRows the query with the Runner set by RunWith.
 func (b *InsertBuilder) QueryRow() RowScanner {
+	return b.QueryRowContext(context.Background())
+}
+
+// QueryRowContext builds and runs the query using given context.
+func (b *InsertBuilder) QueryRowContext(ctx context.Context) RowScanner {
 	if b.runWith == nil {
 		return &Row{err: ErrRunnerNotSet}
 	}
-	queryRower, ok := b.runWith.(QueryRower)
+	queryRower, ok := b.runWith.(QueryRowerContext)
 	if !ok {
-		return &Row{err: ErrRunnerNotQueryRunner}
+		return &Row{err: ErrRunnerNotQueryRunnerContext}
 	}
-	return QueryRowWith(queryRower, b)
+	return QueryRowWithContext(ctx, queryRower, b)
 }
 
 // Scan is a shortcut for QueryRow().Scan.

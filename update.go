@@ -2,6 +2,7 @@ package sqrl
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -47,11 +48,15 @@ func (b *UpdateBuilder) RunWith(runner BaseRunner) *UpdateBuilder {
 
 // Exec builds and Execs the query with the Runner set by RunWith.
 func (b *UpdateBuilder) Exec() (sql.Result, error) {
+	return b.ExecContext(context.Background())
+}
+
+// ExecContext builds and Execs the query with the Runner set by RunWith using given context.
+func (b *UpdateBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
-
-	return ExecWith(b.runWith, b)
+	return ExecWithContext(ctx, b.runWith, b)
 }
 
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the

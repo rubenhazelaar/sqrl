@@ -2,6 +2,7 @@ package sqrl
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -42,10 +43,15 @@ func (b *DeleteBuilder) RunWith(runner BaseRunner) *DeleteBuilder {
 
 // Exec builds and Execs the query with the Runner set by RunWith.
 func (b *DeleteBuilder) Exec() (sql.Result, error) {
+	return b.ExecContext(context.Background())
+}
+
+// Exec builds and Execs the query with the Runner set by RunWith using given context.
+func (b *DeleteBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
-	return ExecWith(b.runWith, b)
+	return ExecWithContext(ctx, b.runWith, b)
 }
 
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
