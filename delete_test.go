@@ -1,6 +1,7 @@
 package sqrl
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -115,11 +116,17 @@ func TestDeleteBuilderRunners(t *testing.T) {
 
 	b.Exec()
 	assert.Equal(t, expectedSql, db.LastExecSql)
+
+	b.ExecContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastExecSql)
 }
 
 func TestDeleteBuilderNoRunner(t *testing.T) {
 	b := Delete("test")
 
 	_, err := b.Exec()
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	_, err = b.ExecContext(context.TODO())
 	assert.Equal(t, ErrRunnerNotSet, err)
 }

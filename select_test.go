@@ -1,6 +1,7 @@
 package sqrl
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -126,6 +127,15 @@ func TestSelectBuilderRunners(t *testing.T) {
 	b.QueryRow()
 	assert.Equal(t, expectedSql, db.LastQueryRowSql)
 
+	b.ExecContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+
+	b.QueryContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+
+	b.QueryRowContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+
 	err := b.Scan()
 	assert.NoError(t, err)
 }
@@ -137,6 +147,12 @@ func TestSelectBuilderNoRunner(t *testing.T) {
 	assert.Equal(t, ErrRunnerNotSet, err)
 
 	_, err = b.Query()
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	_, err = b.QueryContext(context.TODO())
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	_, err = b.ExecContext(context.TODO())
 	assert.Equal(t, ErrRunnerNotSet, err)
 
 	err = b.Scan()

@@ -1,6 +1,7 @@
 package sqrl
 
 import (
+	"context"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -74,11 +75,17 @@ func TestUpdateBuilderRunners(t *testing.T) {
 
 	b.Exec()
 	assert.Equal(t, expectedSql, db.LastExecSql)
+
+	b.ExecContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastExecSql)
 }
 
 func TestUpdateBuilderNoRunner(t *testing.T) {
 	b := Update("test").Set("x", 1)
 
 	_, err := b.Exec()
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	_, err = b.ExecContext(context.TODO())
 	assert.Equal(t, ErrRunnerNotSet, err)
 }

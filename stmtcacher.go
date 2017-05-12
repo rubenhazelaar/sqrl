@@ -1,6 +1,7 @@
 package sqrl
 
 import (
+	"context"
 	"database/sql"
 	"sync"
 )
@@ -8,8 +9,10 @@ import (
 // Preparer is the interface that wraps the Prepare method.
 //
 // Prepare executes the given query as implemented by database/sql.Prepare.
+// Prepare executes the given query as implemented by database/sql.PrepareContext.
 type Preparer interface {
 	Prepare(query string) (*sql.Stmt, error)
+	PrepareContext(ctx context.Context, query string) (*sql.Stmt, error)
 }
 
 // DBProxy groups the Execer, Queryer, QueryRower, and Preparer interfaces.
@@ -18,6 +21,9 @@ type DBProxy interface {
 	Queryer
 	QueryRower
 	Preparer
+	ExecerContext
+	QueryerContext
+	QueryRowerContext
 }
 
 type stmtCacher struct {
@@ -33,42 +39,58 @@ func NewStmtCacher(prep Preparer) DBProxy {
 	return &stmtCacher{prep: prep, cache: make(map[string]*sql.Stmt)}
 }
 
-func (sc *stmtCacher) Prepare(query string) (*sql.Stmt, error) {
+func (sc *stmtCacher) PrepareContext(ctx context.Context, query string) (*sql.Stmt, error) {
 	sc.mu.Lock()
 	defer sc.mu.Unlock()
 	stmt, ok := sc.cache[query]
 	if ok {
 		return stmt, nil
 	}
-	stmt, err := sc.prep.Prepare(query)
+	stmt, err := sc.prep.PrepareContext(ctx, query)
 	if err == nil {
 		sc.cache[query] = stmt
 	}
 	return stmt, err
 }
 
-func (sc *stmtCacher) Exec(query string, args ...interface{}) (res sql.Result, err error) {
-	stmt, err := sc.Prepare(query)
+func (sc *stmtCacher) ExecContext(ctx context.Context, query string, args ...interface{}) (res sql.Result, err error) {
+	stmt, err := sc.PrepareContext(ctx, query)
 	if err != nil {
 		return
 	}
-	return stmt.Exec(args...)
+	return stmt.ExecContext(ctx, args...)
 }
 
-func (sc *stmtCacher) Query(query string, args ...interface{}) (rows *sql.Rows, err error) {
-	stmt, err := sc.Prepare(query)
+func (sc *stmtCacher) QueryContext(ctx context.Context, query string, args ...interface{}) (rows *sql.Rows, err error) {
+	stmt, err := sc.PrepareContext(ctx, query)
 	if err != nil {
 		return
 	}
-	return stmt.Query(args...)
+	return stmt.QueryContext(ctx, args...)
 }
 
-func (sc *stmtCacher) QueryRow(query string, args ...interface{}) RowScanner {
-	stmt, err := sc.Prepare(query)
+func (sc *stmtCacher) QueryRowContext(ctx context.Context, query string, args ...interface{}) RowScanner {
+	stmt, err := sc.PrepareContext(ctx, query)
 	if err != nil {
 		return &Row{err: err}
 	}
-	return stmt.QueryRow(args...)
+	return stmt.QueryRowContext(ctx, args...)
+}
+
+func (sc *stmtCacher) Prepare(query string) (*sql.Stmt, error) {
+	return sc.PrepareContext(context.Background(), query)
+}
+
+func (sc *stmtCacher) Exec(query string, args ...interface{}) (res sql.Result, err error) {
+	return sc.ExecContext(context.Background(), query, args...)
+}
+
+func (sc *stmtCacher) Query(query string, args ...interface{}) (rows *sql.Rows, err error) {
+	return sc.QueryContext(context.Background(), query, args...)
+}
+
+func (sc *stmtCacher) QueryRow(query string, args ...interface{}) RowScanner {
+	return sc.QueryRowContext(context.Background(), query, args...)
 }
 
 // DBProxyBeginner describes a DBProxy that can start transactions
