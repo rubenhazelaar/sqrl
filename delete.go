@@ -76,7 +76,9 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 
 	sql.WriteString("DELETE ")
-	if len(b.what) > 0 {
+	// following condition helps to avoid duplicate "from" value in DELETE query
+	// e.g. "DELETE a FROM a ..." which is valid for MySQL but not for PostgreSQL
+	if len(b.what) > 0 && (len(b.what) != 1 || b.what[0] != b.from) {
 		sql.WriteString(strings.Join(b.what, ", "))
 		sql.WriteString(" ")
 	}
@@ -143,11 +145,11 @@ func (b *DeleteBuilder) What(what ...string) *DeleteBuilder {
 		}
 	}
 
+	b.what = filteredWhat
 	if len(filteredWhat) == 1 {
-		return b.From(filteredWhat[0])
+		b.From(filteredWhat[0])
 	}
 
-	b.what = filteredWhat
 	return b
 }
 
