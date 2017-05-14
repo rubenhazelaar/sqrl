@@ -30,8 +30,22 @@ func TestDeleteBuilderToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
-func TestDeleteOneFrom(t *testing.T) {
+func TestDeleteFromAndWhatDiffer(t *testing.T) {
 	b := Delete("b").
+		From("a").
+		Where("b = ?", 1)
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "DELETE b FROM a WHERE b = ?"
+	assert.Equal(t, expectedSql, sql)
+	expectedArgs := []interface{}{1}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestDeleteFromAndWhatSame(t *testing.T) {
+	b := Delete("a").
 		From("a").
 		Where("b = ?", 1)
 
@@ -43,7 +57,6 @@ func TestDeleteOneFrom(t *testing.T) {
 	expectedArgs := []interface{}{1}
 	assert.Equal(t, expectedArgs, args)
 }
-
 func TestDeleteWithoutFrom(t *testing.T) {
 	b := Delete("a").
 		Where("b = ?", 1)
@@ -129,4 +142,25 @@ func TestDeleteBuilderNoRunner(t *testing.T) {
 
 	_, err = b.ExecContext(context.TODO())
 	assert.Equal(t, ErrRunnerNotSet, err)
+}
+
+func TestIssue11(t *testing.T) {
+	b := Delete("a").
+		From("A a").
+		Join("B b ON a.c = b.c").
+		Where("b.d = ?", 1).
+		Limit(2)
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "DELETE a FROM A a " +
+		"JOIN B b ON a.c = b.c " +
+		"WHERE b.d = ? " +
+		"LIMIT 2"
+
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1}
+	assert.Equal(t, expectedArgs, args)
 }
