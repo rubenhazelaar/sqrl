@@ -70,6 +70,21 @@ func TestEqOrInToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestLikeOrInToSql(t *testing.T) {
+	b := LikeOr{
+		"id": 1,
+		"name": "Joe",
+	}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "id LIKE ? OR name LIKE ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1, "Joe"}
+	assert.Equal(t, expectedArgs, args)
+}
+
 func TestExprNilToSql(t *testing.T) {
 	var b Sqlizer
 	b = NotEq{"name": nil}

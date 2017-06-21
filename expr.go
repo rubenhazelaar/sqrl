@@ -99,7 +99,7 @@ func (e aliasExpr) ToSql() (sql string, args []interface{}, err error) {
 //     .Where(Eq{"id": 1})
 type Eq map[string]interface{}
 
-func (eq Eq) toSql(useNotOpr bool, useOr bool) (sql string, args []interface{}, err error) {
+func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface{}, err error) {
 	var (
 		exprs    []string
 		equalOpr string = "="
@@ -107,10 +107,22 @@ func (eq Eq) toSql(useNotOpr bool, useOr bool) (sql string, args []interface{}, 
 		nullOpr  string = "IS"
 	)
 
-	if useNotOpr {
+	switch {
+	case useNotOpr && useLike:
+		equalOpr = "NOT LIKE"
+		inOpr = "NOT IN"
+		nullOpr = "IS NOT"
+		break;
+	case useNotOpr:
 		equalOpr = "<>"
 		inOpr = "NOT IN"
 		nullOpr = "IS NOT"
+		break;
+	case useLike:
+		equalOpr = "LIKE"
+		inOpr = "IN"
+		nullOpr = "IS"
+		break;
 	}
 
 	for key, val := range eq {
@@ -124,7 +136,13 @@ func (eq Eq) toSql(useNotOpr bool, useOr bool) (sql string, args []interface{}, 
 		}
 
 		if val == nil {
+			if useLike {
+				err = fmt.Errorf("cannot use like with a slice or an array")
+				return
+			}
+
 			expr = fmt.Sprintf("%s %s NULL", key, nullOpr)
+
 		} else {
 			valVal := reflect.ValueOf(val)
 			if valVal.Kind() == reflect.Array || valVal.Kind() == reflect.Slice {
@@ -132,6 +150,12 @@ func (eq Eq) toSql(useNotOpr bool, useOr bool) (sql string, args []interface{}, 
 					err = fmt.Errorf("equality condition must contain at least one paramater")
 					return
 				}
+
+				if useLike {
+					err = fmt.Errorf("cannot use like with a slice or an array")
+					return
+				}
+
 				for i := 0; i < valVal.Len(); i++ {
 					args = append(args, valVal.Index(i).Interface())
 				}
@@ -155,7 +179,7 @@ func (eq Eq) toSql(useNotOpr bool, useOr bool) (sql string, args []interface{}, 
 
 // ToSql builds the query into a SQL string and bound args.
 func (eq Eq) ToSql() (sql string, args []interface{}, err error) {
-	return eq.toSql(false, false)
+	return eq.toSql(false, false, false)
 }
 
 // NotEq is syntactic sugar for use with Where/Having/Set methods.
@@ -165,17 +189,27 @@ type NotEq Eq
 
 // ToSql builds the query into a SQL string and bound args.
 func (neq NotEq) ToSql() (sql string, args []interface{}, err error) {
-	return Eq(neq).toSql(true, false)
+	return Eq(neq).toSql(true, false, false)
 }
 
 // EqOr is syntactic sugar for use with Where/Having/Set methods.
 // Ex:
-//     .Where(NotEq{"id": 1, "name": "Joe"}) == "id = 1 OR name = 'Joe'"
+//     .Where(EqOr{"id": 1, "name": "Joe"}) == "id = 1 OR name = 'Joe'"
 type EqOr Eq
 
 // ToSql builds the query into a SQL string and bound args.
 func (eqor EqOr) ToSql() (sql string, args []interface{}, err error) {
-	return Eq(eqor).toSql(false, true)
+	return Eq(eqor).toSql(false, true, false)
+}
+
+// LikeOr is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(LikeOr{"id": 1, "name": "Joe"}) == "id = 1 OR name = 'Joe'"
+type LikeOr Eq
+
+// ToSql builds the query into a SQL string and bound args.
+func (likeor LikeOr) ToSql() (sql string, args []interface{}, err error) {
+	return Eq(likeor).toSql(false, true, true)
 }
 
 type conj []Sqlizer
