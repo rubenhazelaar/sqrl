@@ -217,6 +217,11 @@ func (b *UpdateBuilder) RightJoin(join string) *UpdateBuilder {
 	return b.JoinClause("RIGHT JOIN " + join)
 }
 
+// InnerJoin adds a INNER JOIN clause to the query.
+func (b *UpdateBuilder) InnerJoin(join string) *UpdateBuilder {
+	return b.JoinClause("INNER JOIN " + join)
+}
+
 // Where adds WHERE expressions to the query.
 //
 // See SelectBuilder.Where for more information.
