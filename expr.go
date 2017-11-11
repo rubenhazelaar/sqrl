@@ -273,7 +273,7 @@ func (a And) ToSql() (string, []interface{}, error) {
 
 // Or is syntactic sugar that glues where/having parts with OR clause
 // Ex:
-//     .Where(And{Expr("a > ?", 15), Expr("b < ?", 20), Expr("c is TRUE")})
+//     .Where(Or{Expr("a > ?", 15), Expr("b < ?", 20), Expr("c is TRUE")})
 type Or conj
 
 // ToSql builds the query into a SQL string and bound args.
