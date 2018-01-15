@@ -55,23 +55,40 @@ func TestEqNotInToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
-func TestExprNilToSql(t *testing.T) {
-	var b Sqlizer
-	b = NotEq{"name": nil}
+func TestEqInEmptyToSql(t *testing.T) {
+	b := Eq{"id": []int{}}
 	sql, args, err := b.ToSql()
 	assert.NoError(t, err)
-	assert.Empty(t, args)
 
-	expectedSql := "name IS NOT NULL"
+	expectedSql := "(1=0)"
 	assert.Equal(t, expectedSql, sql)
 
-	b = Eq{"name": nil}
-	sql, args, err = b.ToSql()
+	expectedArgs := []interface{}{}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestNotEqInEmptyToSql(t *testing.T) {
+	b := NotEq{"id": []int{}}
+	sql, args, err := b.ToSql()
 	assert.NoError(t, err)
-	assert.Empty(t, args)
 
-	expectedSql = "name IS NULL"
+	expectedSql := "(1=1)"
 	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestEqBytesToSql(t *testing.T) {
+	b := Eq{"id": []byte("test")}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "id = ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{[]byte("test")}
+	assert.Equal(t, expectedArgs, args)
 }
 
 func TestLtToSql(t *testing.T) {
@@ -122,6 +139,25 @@ func TestGtOrEqToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestExprNilToSql(t *testing.T) {
+	var b Sqlizer
+	b = NotEq{"name": nil}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+
+	expectedSql := "name IS NOT NULL"
+	assert.Equal(t, expectedSql, sql)
+
+	b = Eq{"name": nil}
+	sql, args, err = b.ToSql()
+	assert.NoError(t, err)
+	assert.Empty(t, args)
+
+	expectedSql = "name IS NULL"
+	assert.Equal(t, expectedSql, sql)
+}
+
 func TestNullTypeString(t *testing.T) {
 	var b Sqlizer
 	var name sql.NullString
@@ -152,7 +188,7 @@ func TestNullTypeInt64(t *testing.T) {
 	assert.Empty(t, args)
 	assert.Equal(t, "user_id IS NULL", sql)
 
-	userID.Scan(10)
+	userID.Scan(int64(10))
 	b = Eq{"user_id": userID}
 	sql, args, err = b.ToSql()
 

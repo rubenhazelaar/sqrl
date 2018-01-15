@@ -15,8 +15,9 @@ type SelectBuilder struct {
 
 	prefixes    exprs
 	distinct    bool
+	options     []string
 	columns     []Sqlizer
-	from        string
+	from        Sqlizer
 	joins       []Sqlizer
 	whereParts  []Sqlizer
 	groupBys    []string
@@ -116,6 +117,11 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString("DISTINCT ")
 	}
 
+	if len(b.options) > 0 {
+		sql.WriteString(strings.Join(b.options, " "))
+		sql.WriteString(" ")
+	}
+
 	if len(b.columns) > 0 {
 		args, err = appendToSql(b.columns, sql, ", ", args)
 		if err != nil {
@@ -123,9 +129,12 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		}
 	}
 
-	if len(b.from) > 0 {
+	if b.from != nil {
 		sql.WriteString(" FROM ")
-		sql.WriteString(b.from)
+		args, err = appendToSql([]Sqlizer{b.from}, sql, "", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.joins) > 0 {
@@ -196,6 +205,14 @@ func (b *SelectBuilder) Distinct() *SelectBuilder {
 	return b
 }
 
+// Options adds select option to the query
+func (b *SelectBuilder) Options(options ...string) *SelectBuilder {
+	for _, str := range options {
+		b.options = append(b.options, str)
+	}
+	return b
+}
+
 // Columns adds result columns to the query.
 func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 	for _, str := range columns {
@@ -217,7 +234,13 @@ func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectB
 
 // From sets the FROM clause of the query.
 func (b *SelectBuilder) From(from string) *SelectBuilder {
-	b.from = from
+	b.from = newPart(from)
+	return b
+}
+
+// FromSelect sets a subquery into the FROM clause of the query.
+func (b *SelectBuilder) FromSelect(from *SelectBuilder, alias string) *SelectBuilder {
+	b.from = Alias(from, alias)
 	return b
 }
 

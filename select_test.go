@@ -97,6 +97,20 @@ func TestSelectBuilderZeroOffsetLimit(t *testing.T) {
 	assert.Equal(t, expectedSql, sql)
 }
 
+
+func TestSelectBuilderFromSelect(t *testing.T) {
+	subQ := Select("c").From("d").Where(Eq{"i": 0})
+	b := Select("a", "b").FromSelect(subQ, "subq")
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "SELECT a, b FROM (SELECT c FROM d WHERE i = ?) AS subq"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{0}
+	assert.Equal(t, expectedArgs, args)
+}
+
 func TestSelectBuilderToSqlErr(t *testing.T) {
 	_, _, err := Select().From("x").ToSql()
 	assert.Error(t, err)
@@ -157,4 +171,55 @@ func TestSelectBuilderNoRunner(t *testing.T) {
 
 	err = b.Scan()
 	assert.Equal(t, ErrRunnerNotSet, err)
+}
+
+func TestSelectBuilderSimpleJoin(t *testing.T) {
+
+	expectedSql := "SELECT * FROM bar JOIN baz ON bar.foo = baz.foo"
+	expectedArgs := []interface{}(nil)
+
+	b := Select("*").From("bar").Join("baz ON bar.foo = baz.foo")
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedSql, sql)
+	assert.Equal(t, args, expectedArgs)
+}
+
+func TestSelectBuilderParamJoin(t *testing.T) {
+
+	expectedSql := "SELECT * FROM bar JOIN baz ON bar.foo = baz.foo AND baz.foo = ?"
+	expectedArgs := []interface{}{42}
+
+	b := Select("*").From("bar").Join("baz ON bar.foo = baz.foo AND baz.foo = ?", 42)
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedSql, sql)
+	assert.Equal(t, args, expectedArgs)
+}
+
+func TestSelectBuilderNestedSelectJoin(t *testing.T) {
+
+	expectedSql := "SELECT * FROM bar JOIN ( SELECT * FROM baz WHERE foo = ? ) r ON bar.foo = r.foo"
+	expectedArgs := []interface{}{42}
+
+	nestedSelect := Select("*").From("baz").Where("foo = ?", 42)
+
+	b := Select("*").From("bar").JoinClause(nestedSelect.Prefix("JOIN (").Suffix(") r ON bar.foo = r.foo"))
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedSql, sql)
+	assert.Equal(t, args, expectedArgs)
+}
+
+func TestSelectWithOptions(t *testing.T) {
+	sql, _, err := Select("*").From("foo").Distinct().Options("SQL_NO_CACHE").ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT DISTINCT SQL_NO_CACHE * FROM foo", sql)
 }
