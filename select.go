@@ -17,7 +17,7 @@ type SelectBuilder struct {
 	distinct    bool
 	columns     []Sqlizer
 	from        string
-	joins       []string
+	joins       []Sqlizer
 	whereParts  []Sqlizer
 	groupBys    []string
 	havingParts []Sqlizer
@@ -130,7 +130,10 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 
 	if len(b.joins) > 0 {
 		sql.WriteString(" ")
-		sql.WriteString(strings.Join(b.joins, " "))
+		args, err = appendToSql(b.joins, sql, " ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.whereParts) > 0 {
@@ -219,25 +222,25 @@ func (b *SelectBuilder) From(from string) *SelectBuilder {
 }
 
 // JoinClause adds a join clause to the query.
-func (b *SelectBuilder) JoinClause(join string) *SelectBuilder {
-	b.joins = append(b.joins, join)
+func (b *SelectBuilder) JoinClause(pred interface{}, args ...interface{}) *SelectBuilder {
+	b.joins = append(b.joins, newPart(pred, args...))
 
 	return b
 }
 
 // Join adds a JOIN clause to the query.
-func (b *SelectBuilder) Join(join string) *SelectBuilder {
-	return b.JoinClause("JOIN " + join)
+func (b *SelectBuilder) Join(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("JOIN "+join, rest...)
 }
 
 // LeftJoin adds a LEFT JOIN clause to the query.
-func (b *SelectBuilder) LeftJoin(join string) *SelectBuilder {
-	return b.JoinClause("LEFT JOIN " + join)
+func (b *SelectBuilder) LeftJoin(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("LEFT JOIN "+join, rest...)
 }
 
 // RightJoin adds a RIGHT JOIN clause to the query.
-func (b *SelectBuilder) RightJoin(join string) *SelectBuilder {
-	return b.JoinClause("RIGHT JOIN " + join)
+func (b *SelectBuilder) RightJoin(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("RIGHT JOIN "+join, rest...)
 }
 
 // Where adds an expression to the WHERE clause of the query.
