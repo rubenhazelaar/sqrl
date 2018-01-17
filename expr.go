@@ -101,16 +101,18 @@ type Eq map[string]interface{}
 
 func (eq Eq) toSql(useNotOpr bool) (sql string, args []interface{}, err error) {
 	var (
-		exprs    []string
-		equalOpr string = "="
-		inOpr    string = "IN"
-		nullOpr  string = "IS"
+		exprs      []string
+		equalOpr   = "="
+		inOpr      = "IN"
+		nullOpr    = "IS"
+		inEmptyExpr = "(1=0)" // Portable FALSE
 	)
 
 	if useNotOpr {
 		equalOpr = "<>"
 		inOpr = "NOT IN"
 		nullOpr = "IS NOT"
+		inEmptyExpr = "(1=1)" // Portable TRUE
 	}
 
 	for key, val := range eq {
@@ -126,16 +128,19 @@ func (eq Eq) toSql(useNotOpr bool) (sql string, args []interface{}, err error) {
 		if val == nil {
 			expr = fmt.Sprintf("%s %s NULL", key, nullOpr)
 		} else {
-			valVal := reflect.ValueOf(val)
-			if valVal.Kind() == reflect.Array || valVal.Kind() == reflect.Slice {
+			if isListType(val) {
+				valVal := reflect.ValueOf(val)
 				if valVal.Len() == 0 {
-					err = fmt.Errorf("equality condition must contain at least one paramater")
-					return
+					expr = inEmptyExpr
+					if args == nil {
+						args = []interface{}{}
+					}
+				} else {
+					for i := 0; i < valVal.Len(); i++ {
+						args = append(args, valVal.Index(i).Interface())
+					}
+					expr = fmt.Sprintf("%s %s (%s)", key, inOpr, Placeholders(valVal.Len()))
 				}
-				for i := 0; i < valVal.Len(); i++ {
-					args = append(args, valVal.Index(i).Interface())
-				}
-				expr = fmt.Sprintf("%s %s (%s)", key, inOpr, Placeholders(valVal.Len()))
 			} else {
 				expr = fmt.Sprintf("%s %s ?", key, equalOpr)
 				args = append(args, val)
@@ -195,8 +200,7 @@ func (lt Lt) toSql(opposite, orEq bool) (sql string, args []interface{}, err err
 			err = fmt.Errorf("cannot use null with less than or greater than operators")
 			return
 		} else {
-			valVal := reflect.ValueOf(val)
-			if valVal.Kind() == reflect.Array || valVal.Kind() == reflect.Slice {
+			if isListType(val) {
 				err = fmt.Errorf("cannot use array or slice with less than or greater than operators")
 				return
 			} else {
@@ -279,6 +283,14 @@ type Or conj
 // ToSql builds the query into a SQL string and bound args.
 func (o Or) ToSql() (string, []interface{}, error) {
 	return conj(o).join(" OR ")
+}
+
+func isListType(val interface{}) bool {
+	if driver.IsValue(val) {
+		return false
+	}
+	valVal := reflect.ValueOf(val)
+	return valVal.Kind() == reflect.Array || valVal.Kind() == reflect.Slice
 }
 
 func hasSqlizer(args []interface{}) bool {

@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
+	"io"
 	"strings"
 )
 
@@ -18,6 +20,7 @@ type InsertBuilder struct {
 	columns  []string
 	values   [][]interface{}
 	suffixes exprs
+	iselect  *SelectBuilder
 }
 
 // NewInsertBuilder creates new instance of InsertBuilder
@@ -92,8 +95,8 @@ func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		err = fmt.Errorf("insert statements must specify a table")
 		return
 	}
-	if len(b.values) == 0 {
-		err = fmt.Errorf("insert statements must have at least one set of values")
+	if len(b.values) == 0 && b.iselect == nil {
+		err = fmt.Errorf("insert statements must have at least one set of values or select clause")
 		return
 	}
 
@@ -121,22 +124,48 @@ func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(") ")
 	}
 
-	sql.WriteString("VALUES ")
+	if b.iselect != nil {
+		args, err = b.appendSelectToSQL(sql, args)
+	} else {
+		args, err = b.appendValuesToSQL(sql, args)
+	}
+	if err != nil {
+		return
+	}
+
+	if len(b.suffixes) > 0 {
+		sql.WriteString(" ")
+		args, _ = b.suffixes.AppendToSql(sql, " ", args)
+	}
+
+	sqlStr, err = b.placeholderFormat.ReplacePlaceholders(sql.String())
+	return
+}
+
+func (b *InsertBuilder) appendValuesToSQL(w io.Writer, args []interface{}) ([]interface{}, error) {
+	if len(b.values) == 0 {
+		return args, errors.New("values for insert statements are not set")
+	}
+
+	io.WriteString(w, "VALUES ")
 
 	valuesStrings := make([]string, len(b.values))
 	for r, row := range b.values {
-
 		valueStrings := make([]string, len(row))
-
 		for v, val := range row {
+
 			switch typedVal := val.(type) {
+			case expr:
+				valueStrings[v] = typedVal.sql
+				args = append(args, typedVal.args...)
 			case Sqlizer:
 				var valSql string
 				var valArgs []interface{}
+				var err error
 
 				valSql, valArgs, err = typedVal.ToSql()
 				if err != nil {
-					return
+					return nil, err
 				}
 
 				valueStrings[v] = valSql
@@ -146,18 +175,28 @@ func (b *InsertBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 				args = append(args, val)
 			}
 		}
-
 		valuesStrings[r] = fmt.Sprintf("(%s)", strings.Join(valueStrings, ","))
 	}
-	sql.WriteString(strings.Join(valuesStrings, ","))
 
-	if len(b.suffixes) > 0 {
-		sql.WriteString(" ")
-		args, _ = b.suffixes.AppendToSql(sql, " ", args)
+	io.WriteString(w, strings.Join(valuesStrings, ","))
+
+	return args, nil
+}
+
+func (b *InsertBuilder) appendSelectToSQL(w io.Writer, args []interface{}) ([]interface{}, error) {
+	if b.iselect == nil {
+		return args, errors.New("select clause for insert statements are not set")
 	}
 
-	sqlStr, err = b.placeholderFormat.ReplacePlaceholders(sql.String())
-	return
+	selectClause, sArgs, err := b.iselect.ToSql()
+	if err != nil {
+		return args, err
+	}
+
+	io.WriteString(w, selectClause)
+	args = append(args, sArgs...)
+
+	return args, nil
 }
 
 // Prefix adds an expression to the beginning of the query
@@ -211,5 +250,12 @@ func (b *InsertBuilder) SetMap(clauses map[string]interface{}) *InsertBuilder {
 	b.columns = cols
 	b.values = [][]interface{}{vals}
 
+	return b
+}
+
+// Select set Select clause for insert query
+// If Values and Select are used, then Select has higher priority
+func (b *InsertBuilder) Select(sb *SelectBuilder) *InsertBuilder {
+	b.iselect = sb
 	return b
 }

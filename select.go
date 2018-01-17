@@ -15,9 +15,10 @@ type SelectBuilder struct {
 
 	prefixes    exprs
 	distinct    bool
+	options     []string
 	columns     []Sqlizer
-	from        string
-	joins       []string
+	from        Sqlizer
+	joins       []Sqlizer
 	whereParts  []Sqlizer
 	groupBys    []string
 	havingParts []Sqlizer
@@ -116,6 +117,11 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString("DISTINCT ")
 	}
 
+	if len(b.options) > 0 {
+		sql.WriteString(strings.Join(b.options, " "))
+		sql.WriteString(" ")
+	}
+
 	if len(b.columns) > 0 {
 		args, err = appendToSql(b.columns, sql, ", ", args)
 		if err != nil {
@@ -123,14 +129,20 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		}
 	}
 
-	if len(b.from) > 0 {
+	if b.from != nil {
 		sql.WriteString(" FROM ")
-		sql.WriteString(b.from)
+		args, err = appendToSql([]Sqlizer{b.from}, sql, "", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.joins) > 0 {
 		sql.WriteString(" ")
-		sql.WriteString(strings.Join(b.joins, " "))
+		args, err = appendToSql(b.joins, sql, " ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.whereParts) > 0 {
@@ -193,6 +205,14 @@ func (b *SelectBuilder) Distinct() *SelectBuilder {
 	return b
 }
 
+// Options adds select option to the query
+func (b *SelectBuilder) Options(options ...string) *SelectBuilder {
+	for _, str := range options {
+		b.options = append(b.options, str)
+	}
+	return b
+}
+
 // Columns adds result columns to the query.
 func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 	for _, str := range columns {
@@ -214,30 +234,36 @@ func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectB
 
 // From sets the FROM clause of the query.
 func (b *SelectBuilder) From(from string) *SelectBuilder {
-	b.from = from
+	b.from = newPart(from)
+	return b
+}
+
+// FromSelect sets a subquery into the FROM clause of the query.
+func (b *SelectBuilder) FromSelect(from *SelectBuilder, alias string) *SelectBuilder {
+	b.from = Alias(from, alias)
 	return b
 }
 
 // JoinClause adds a join clause to the query.
-func (b *SelectBuilder) JoinClause(join string) *SelectBuilder {
-	b.joins = append(b.joins, join)
+func (b *SelectBuilder) JoinClause(pred interface{}, args ...interface{}) *SelectBuilder {
+	b.joins = append(b.joins, newPart(pred, args...))
 
 	return b
 }
 
 // Join adds a JOIN clause to the query.
-func (b *SelectBuilder) Join(join string) *SelectBuilder {
-	return b.JoinClause("JOIN " + join)
+func (b *SelectBuilder) Join(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("JOIN "+join, rest...)
 }
 
 // LeftJoin adds a LEFT JOIN clause to the query.
-func (b *SelectBuilder) LeftJoin(join string) *SelectBuilder {
-	return b.JoinClause("LEFT JOIN " + join)
+func (b *SelectBuilder) LeftJoin(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("LEFT JOIN "+join, rest...)
 }
 
 // RightJoin adds a RIGHT JOIN clause to the query.
-func (b *SelectBuilder) RightJoin(join string) *SelectBuilder {
-	return b.JoinClause("RIGHT JOIN " + join)
+func (b *SelectBuilder) RightJoin(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("RIGHT JOIN "+join, rest...)
 }
 
 // Where adds an expression to the WHERE clause of the query.
