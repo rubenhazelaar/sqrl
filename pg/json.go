@@ -7,6 +7,7 @@ import (
 	"github.com/elgris/sqrl"
 )
 
+// JSONB converts value into Postgres JSONB
 func JSONB(value interface{}) sqrl.Sqlizer {
 	return jsonOp{
 		value: value,
@@ -14,6 +15,7 @@ func JSONB(value interface{}) sqrl.Sqlizer {
 	}
 }
 
+// JSON converts value into Postgres JSON
 func JSON(value interface{}) sqrl.Sqlizer {
 	return jsonOp{
 		value: value,
@@ -26,6 +28,7 @@ type jsonOp struct {
 	tpe   string
 }
 
+// ToSql builds the query into a SQL string and bound args.
 func (jo jsonOp) ToSql() (string, []interface{}, error) {
 	v, err := json.Marshal(jo.value)
 	if err != nil {
