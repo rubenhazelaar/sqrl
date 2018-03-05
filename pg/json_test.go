@@ -2,6 +2,7 @@ package pg
 
 import (
 	"errors"
+	"fmt"
 	"testing"
 
 	"github.com/elgris/sqrl"
@@ -14,7 +15,7 @@ func (v invalidValue) MarshalJSON() ([]byte, error) {
 	return nil, errors.New("invalid value")
 }
 
-func TestJSON(t *testing.T) {
+func TestValidJSON(t *testing.T) {
 	sv := struct {
 		Foo string `json:"foo"`
 		Bar int    `json:"bar"`
@@ -40,12 +41,31 @@ func TestJSON(t *testing.T) {
 
 		assert.NoError(t, err)
 		assert.Equal(t, test.sql, sql)
-		assert.Equal(t, []interface{}{[]byte(test.value)}, args)
+		assert.Equal(t, []interface{}{test.value}, args)
 	}
+}
 
+func TestInvalidJSON(t *testing.T) {
 	sql, args, err := JSONB(invalidValue{}).ToSql()
 	assert.Error(t, err)
 	assert.Empty(t, sql)
 	assert.Nil(t, args)
+}
 
+func ExampleJSONB() {
+	sql, args, err := sqrl.Insert("posts").
+		Columns("content", "tags").
+		Values("Lorem Ipsum", JSONB([]string{"foo", "bar"})).
+		ToSql()
+
+	if err != nil {
+		panic(err)
+	}
+
+	fmt.Println(sql)
+	fmt.Println(args)
+
+	// Output:
+	// INSERT INTO posts (content,tags) VALUES (?,?::jsonb)
+	// [Lorem Ipsum ["foo","bar"]]
 }

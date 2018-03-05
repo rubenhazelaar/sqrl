@@ -35,5 +35,5 @@ func (jo jsonOp) ToSql() (string, []interface{}, error) {
 		return "", nil, fmt.Errorf("Failed to serialize %s value: %v", jo.tpe, err)
 	}
 
-	return fmt.Sprintf("?::%s", jo.tpe), []interface{}{v}, nil
+	return fmt.Sprintf("?::%s", jo.tpe), []interface{}{string(v)}, nil
 }

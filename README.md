@@ -83,6 +83,19 @@ sql, args, err := sq.Delete("a1", "a2").
     ToSql()
 ```
 
+### PostgreSQL-specific functions
+
+#### [JSON values](https://www.postgresql.org/docs/9.3/static/functions-json.html)
+
+Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains JSON and JSONB operators that use json.Marshal to serialize values and cast them to appropriate column type.
+
+```go
+sql, args, err := sq.Insert("posts").
+    Columns("content", "tags").
+    Values("Lorem Ipsum", []string{"foo", "bar"}).
+    ToSql()
+```
+
 ## License
 
 Sqrl is released under the
