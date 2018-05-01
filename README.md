@@ -85,14 +85,27 @@ sql, args, err := sq.Delete("a1", "a2").
 
 ### PostgreSQL-specific functions
 
-#### [JSON values](https://www.postgresql.org/docs/9.3/static/functions-json.html)
+Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains PostgreSQL specific operators.
 
-Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains JSON and JSONB operators that use json.Marshal to serialize values and cast them to appropriate column type.
+#### [JSON values](https://www.postgresql.org/docs/current/static/functions-json.html)
+
+JSON and JSONB use json.Marshal to serialize values and cast them to appropriate column type.
 
 ```go
 sql, args, err := sq.Insert("posts").
     Columns("content", "tags").
-    Values("Lorem Ipsum", []string{"foo", "bar"}).
+    Values("Lorem Ipsum", pg.JSONB([]string{"foo", "bar"})).
+    ToSql()
+```
+
+#### [Array values](https://www.postgresql.org/docs/current/static/arrays.html)
+
+Array serializes single and multidimensional slices of string, int, float32 and float64 values.
+
+```go
+sql, args, err := sqrl.Insert("posts").
+    Columns("content", "tags").
+    Values("Lorem Ipsum", pg.Array([]string{"foo", "bar"})).
     ToSql()
 ```
 

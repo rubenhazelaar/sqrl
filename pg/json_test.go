@@ -1,4 +1,4 @@
-package pg
+package pg_test
 
 import (
 	"errors"
@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/elgris/sqrl"
+	"github.com/elgris/sqrl/pg"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -29,11 +30,11 @@ func TestValidJSON(t *testing.T) {
 		sql   string
 		value string
 	}{
-		{JSON("foo"), "?::json", "\"foo\""},
-		{JSON(42), "?::json", "42"},
-		{JSON(nil), "?::json", "null"},
-		{JSON(sv), "?::json", "{\"foo\":\"foo\",\"bar\":42}"},
-		{JSONB("foo"), "?::jsonb", "\"foo\""},
+		{pg.JSON("foo"), "?::json", "\"foo\""},
+		{pg.JSON(42), "?::json", "42"},
+		{pg.JSON(nil), "?::json", "null"},
+		{pg.JSON(sv), "?::json", "{\"foo\":\"foo\",\"bar\":42}"},
+		{pg.JSONB("foo"), "?::jsonb", "\"foo\""},
 	}
 
 	for _, test := range valid {
@@ -46,7 +47,7 @@ func TestValidJSON(t *testing.T) {
 }
 
 func TestInvalidJSON(t *testing.T) {
-	sql, args, err := JSONB(invalidValue{}).ToSql()
+	sql, args, err := pg.JSONB(invalidValue{}).ToSql()
 	assert.Error(t, err)
 	assert.Empty(t, sql)
 	assert.Nil(t, args)
@@ -55,7 +56,7 @@ func TestInvalidJSON(t *testing.T) {
 func ExampleJSONB() {
 	sql, args, err := sqrl.Insert("posts").
 		Columns("content", "tags").
-		Values("Lorem Ipsum", JSONB([]string{"foo", "bar"})).
+		Values("Lorem Ipsum", pg.JSONB([]string{"foo", "bar"})).
 		ToSql()
 
 	if err != nil {
