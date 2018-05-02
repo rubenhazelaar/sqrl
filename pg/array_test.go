@@ -16,10 +16,15 @@ func TestValidArray(t *testing.T) {
 		value string
 	}{
 		{pg.Array([]string{}), "?", "{}"},
+		{pg.Array([]int{}), "?", "{}"},
+		{pg.Array([]float32{}), "?", "{}"},
+		{pg.Array([]float64{}), "?", "{}"},
+		{pg.Array([][]int{}), "?", "{}"},
 		{pg.Array([]string{"foo", "bar", "\"quoted\""}), "?", `{"foo","bar","\"quoted\""}`},
 		{pg.Array([]int{6, 7, 42}), "?", `{6,7,42}`},
 		{pg.Array([][]int{{1, 2}, {3, 4}}), "?", `{{1,2},{3,4}}`},
 		{pg.Array([]float32{1.5, 2, 3}), "?", `{1.5,2,3}`},
+		{pg.Array([]float64{1.5, 2, 3}), "?", `{1.5,2,3}`},
 	}
 
 	for _, test := range valid {
@@ -37,11 +42,13 @@ func TestInvalidArray(t *testing.T) {
 		pg.Array(42),
 		pg.Array("foo"),
 		pg.Array([]interface{}{6, 7, "foo"}),
+		pg.Array([][]interface{}{}),
+		pg.Array([][]interface{}{{1}}),
 	}
 
 	for _, test := range invalid {
 		_, _, err := test.ToSql()
-		assert.NotNil(t, err, "Expected error at case %v", test)
+		assert.NotNil(t, err, "Expected error at case %+v", test)
 	}
 }
 
