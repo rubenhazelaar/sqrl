@@ -25,7 +25,7 @@ func TestValidArray(t *testing.T) {
 	for _, test := range valid {
 		sql, args, err := test.op.ToSql()
 
-		assert.NoError(t, err)
+		assert.NoError(t, err, "Unexpected error at case %v", test.op)
 		assert.Equal(t, test.sql, sql)
 		assert.Equal(t, []interface{}{test.value}, args)
 	}
@@ -40,7 +40,7 @@ func TestInvalidArray(t *testing.T) {
 
 	for _, test := range invalid {
 		_, _, err := test.ToSql()
-		assert.NotNil(t, err)
+		assert.NotNil(t, err, "Expected error at case %v", test)
 	}
 }
 
