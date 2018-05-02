@@ -36,6 +36,7 @@ func TestInvalidArray(t *testing.T) {
 		pg.Array([]struct{}{{}}),
 		pg.Array(42),
 		pg.Array("foo"),
+		pg.Array([]interface{}{6, 7, "foo"}),
 	}
 
 	for _, test := range invalid {

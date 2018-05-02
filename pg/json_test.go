@@ -57,6 +57,7 @@ func ExampleJSONB() {
 	sql, args, err := sqrl.Insert("posts").
 		Columns("content", "tags").
 		Values("Lorem Ipsum", pg.JSONB([]string{"foo", "bar"})).
+		PlaceholderFormat(sqrl.Dollar).
 		ToSql()
 
 	if err != nil {
@@ -67,6 +68,6 @@ func ExampleJSONB() {
 	fmt.Println(args)
 
 	// Output:
-	// INSERT INTO posts (content,tags) VALUES (?,?::jsonb)
+	// INSERT INTO posts (content,tags) VALUES ($1,$2::jsonb)
 	// [Lorem Ipsum ["foo","bar"]]
 }
