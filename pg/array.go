@@ -128,11 +128,11 @@ func marshalStringSlice(src []string, buf *bytes.Buffer) {
 		return
 	}
 
-	buf.WriteString("{\"")
-	buf.WriteString(src[0])
+	buf.WriteRune('{')
+	buf.WriteString(strconv.Quote(src[0]))
 	for i := 1; i < len(src); i++ {
-		buf.WriteString("\",\"")
-		buf.WriteString(src[i])
+		buf.WriteRune(',')
+		buf.WriteString(strconv.Quote(src[i]))
 	}
-	buf.WriteString("\"}")
+	buf.WriteRune('}')
 }

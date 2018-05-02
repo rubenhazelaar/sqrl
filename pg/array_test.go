@@ -16,10 +16,10 @@ func TestValidArray(t *testing.T) {
 		value string
 	}{
 		{pg.Array([]string{}), "?", "{}"},
-		{pg.Array([]string{"foo", "bar"}), "?", "{\"foo\",\"bar\"}"},
-		{pg.Array([]int{6, 7, 42}), "?", "{6,7,42}"},
-		{pg.Array([][]int{{1, 2}, {3, 4}}), "?", "{{1,2},{3,4}}"},
-		{pg.Array([]float32{1.5, 2, 3}), "?", "{1.5,2,3}"},
+		{pg.Array([]string{"foo", "bar", "\"quoted\""}), "?", `{"foo","bar","\"quoted\""}`},
+		{pg.Array([]int{6, 7, 42}), "?", `{6,7,42}`},
+		{pg.Array([][]int{{1, 2}, {3, 4}}), "?", `{{1,2},{3,4}}`},
+		{pg.Array([]float32{1.5, 2, 3}), "?", `{1.5,2,3}`},
 	}
 
 	for _, test := range valid {
