@@ -22,7 +22,9 @@ func TestValidArray(t *testing.T) {
 		{pg.Array([][]int{}), "?", "{}"},
 		{pg.Array([]string{"foo", "bar", "\"quoted\""}), "?", `{"foo","bar","\"quoted\""}`},
 		{pg.Array([]int{6, 7, 42}), "?", `{6,7,42}`},
+		{pg.Array([]uint8{6, 7, 42}), "?", `{6,7,42}`},
 		{pg.Array([][]int{{1, 2}, {3, 4}}), "?", `{{1,2},{3,4}}`},
+		{pg.Array([2][2]int{{1, 2}, {3, 4}}), "?", `{{1,2},{3,4}}`},
 		{pg.Array([]float32{1.5, 2, 3}), "?", `{1.5,2,3}`},
 		{pg.Array([]float64{1.5, 2, 3}), "?", `{1.5,2,3}`},
 	}

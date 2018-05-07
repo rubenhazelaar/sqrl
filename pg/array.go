@@ -5,11 +5,16 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	"github.com/elgris/sqrl"
 )
 
 // Array converts value into Postgres Array
+//
+// Valid values are slices or arrays of arbitrary depth
+// with elements of type string, int, uint and float elements of any bit size
+// Example: []int, [][]uint16, [2][2]int, []string
 func Array(arr interface{}) sqrl.Sqlizer {
 	return array{arr}
 }
@@ -21,11 +26,29 @@ func (a array) ToSql() (string, []interface{}, error) {
 	}
 
 	buf := &bytes.Buffer{}
-	marshalArray(a.value, buf)
+	marshalArray(reflect.ValueOf(a.value), buf)
 	return "?", []interface{}{buf.String()}, nil
 }
 
-var validElems = map[reflect.Kind]struct{}{reflect.Int: {}, reflect.Float32: {}, reflect.Float64: {}, reflect.String: {}}
+type marshaler func(reflect.Value, *bytes.Buffer)
+
+var marshalers = map[reflect.Kind]marshaler{
+	reflect.Uint:    marshalUint,
+	reflect.Uint8:   marshalUint,
+	reflect.Uint16:  marshalUint,
+	reflect.Uint32:  marshalUint,
+	reflect.Uint64:  marshalUint,
+	reflect.Int:     marshalInt,
+	reflect.Int8:    marshalInt,
+	reflect.Int16:   marshalInt,
+	reflect.Int32:   marshalInt,
+	reflect.Int64:   marshalInt,
+	reflect.Float32: marshalFloat,
+	reflect.Float64: marshalFloat,
+	reflect.String:  marshalString,
+}
+
+var validElems = makeValidElems(marshalers)
 
 type array struct {
 	value interface{}
@@ -34,85 +57,64 @@ type array struct {
 func checkArrayType(src interface{}) error {
 	t := reflect.TypeOf(src)
 	k := t.Kind()
-	if k != reflect.Slice {
+	if k != reflect.Slice && k != reflect.Array {
 		return fmt.Errorf("Expected value of type slice, got %s", k)
 	}
 
-	for k == reflect.Slice {
+	for k == reflect.Slice || k == reflect.Array {
 		t = t.Elem()
 		k = t.Kind()
 	}
 
-	if _, ok := validElems[k]; !ok {
-		return fmt.Errorf("Expected element of type int, float32, float64 or string, got: %s", k)
+	if _, ok := marshalers[k]; !ok {
+		return fmt.Errorf("Expected element of type %s, got: %s", validElems, k)
 	}
 	return nil
 }
 
-func marshalArray(src interface{}, buf *bytes.Buffer) {
-	v := reflect.ValueOf(src)
+func marshalArray(v reflect.Value, buf *bytes.Buffer) {
 	l := v.Len()
 	if l == 0 {
 		buf.WriteString("{}")
 		return
 	}
 
-	switch t := src.(type) {
-	case []int:
-		marshalIntSlice(t, buf)
-	case []float32:
-		marshalFloat32Slice(t, buf)
-	case []float64:
-		marshalFloat64Slice(t, buf)
-	case []string:
-		marshalStringSlice(t, buf)
-	default:
-		buf.WriteRune('{')
-		marshalArray(v.Index(0).Interface(), buf)
-		for i := 1; i < v.Len(); i++ {
-			buf.WriteRune(',')
-			marshalArray(v.Index(i).Interface(), buf)
-		}
-		buf.WriteRune('}')
+	k := v.Type().Elem().Kind()
+	marshalElem, ok := marshalers[k]
+	if !ok {
+		marshalElem = marshalArray
 	}
-}
 
-func marshalIntSlice(src []int, buf *bytes.Buffer) {
 	buf.WriteRune('{')
-	buf.WriteString(strconv.Itoa(src[0]))
-	for i := 1; i < len(src); i++ {
+	marshalElem(v.Index(0), buf)
+	for i := 1; i < v.Len(); i++ {
 		buf.WriteRune(',')
-		buf.WriteString(strconv.Itoa(src[i]))
+		marshalElem(v.Index(i), buf)
 	}
 	buf.WriteRune('}')
 }
 
-func marshalFloat32Slice(src []float32, buf *bytes.Buffer) {
-	buf.WriteRune('{')
-	buf.WriteString(strconv.FormatFloat(float64(src[0]), 'f', -1, 32))
-	for i := 1; i < len(src); i++ {
-		buf.WriteRune(',')
-		buf.WriteString(strconv.FormatFloat(float64(src[i]), 'f', -1, 32))
-	}
-	buf.WriteRune('}')
+func marshalInt(v reflect.Value, buf *bytes.Buffer) {
+	buf.WriteString(strconv.FormatInt(v.Int(), 10))
 }
 
-func marshalFloat64Slice(src []float64, buf *bytes.Buffer) {
-	buf.WriteRune('{')
-	buf.WriteString(strconv.FormatFloat(src[0], 'f', -1, 64))
-	for i := 1; i < len(src); i++ {
-		buf.WriteRune(',')
-		buf.WriteString(strconv.FormatFloat(src[i], 'f', -1, 64))
-	}
-	buf.WriteRune('}')
+func marshalUint(v reflect.Value, buf *bytes.Buffer) {
+	buf.WriteString(strconv.FormatUint(v.Uint(), 10))
 }
 
-func marshalStringSlice(src []string, buf *bytes.Buffer) {
-	buf.WriteRune('{')
-	buf.WriteString(strconv.Quote(src[0]))
-	for i := 1; i < len(src); i++ {
-		buf.WriteRune(',')
-		buf.WriteString(strconv.Quote(src[i]))
+func marshalFloat(v reflect.Value, buf *bytes.Buffer) {
+	buf.WriteString(strconv.FormatFloat(v.Float(), 'f', -1, 64))
+}
+
+func marshalString(v reflect.Value, buf *bytes.Buffer) {
+	buf.WriteString(strconv.Quote(v.String()))
+}
+
+func makeValidElems(m map[reflect.Kind]marshaler) string {
+	s := make([]string, 0, len(m))
+	for k := range m {
+		s = append(s, k.String())
 	}
-	buf.WriteRune('}')
+
+	return strings.Join(s, ", ")
 }
