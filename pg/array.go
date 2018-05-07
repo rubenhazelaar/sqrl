@@ -58,7 +58,7 @@ func checkArrayType(src interface{}) error {
 	t := reflect.TypeOf(src)
 	k := t.Kind()
 	if k != reflect.Slice && k != reflect.Array {
-		return fmt.Errorf("Expected value of type slice, got %s", k)
+		return fmt.Errorf("Expected value of type slice or array, got %s", k)
 	}
 
 	for k == reflect.Slice || k == reflect.Array {
