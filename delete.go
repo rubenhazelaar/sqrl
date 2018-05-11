@@ -54,6 +54,41 @@ func (b *DeleteBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
 	return ExecWithContext(ctx, b.runWith, b)
 }
 
+// Query builds and Querys the query with the Runner set by RunWith.
+func (b *DeleteBuilder) Query() (*sql.Rows, error) {
+	return b.QueryContext(context.Background())
+}
+
+// QueryContext builds and runs the query using given context and Query command.
+func (b *DeleteBuilder) QueryContext(ctx context.Context) (*sql.Rows, error) {
+	if b.runWith == nil {
+		return nil, ErrRunnerNotSet
+	}
+	return QueryWithContext(ctx, b.runWith, b)
+}
+
+// QueryRow builds and QueryRows the query with the Runner set by RunWith.
+func (b *DeleteBuilder) QueryRow() RowScanner {
+	return b.QueryRowContext(context.Background())
+}
+
+// QueryRowContext builds and runs the query using given context.
+func (b *DeleteBuilder) QueryRowContext(ctx context.Context) RowScanner {
+	if b.runWith == nil {
+		return &Row{err: ErrRunnerNotSet}
+	}
+	queryRower, ok := b.runWith.(QueryRowerContext)
+	if !ok {
+		return &Row{err: ErrRunnerNotQueryRunnerContext}
+	}
+	return QueryRowWithContext(ctx, queryRower, b)
+}
+
+// Scan is a shortcut for QueryRow().Scan.
+func (b *DeleteBuilder) Scan(dest ...interface{}) error {
+	return b.QueryRow().Scan(dest...)
+}
+
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
 // query.
 func (b *DeleteBuilder) PlaceholderFormat(f PlaceholderFormat) *DeleteBuilder {
@@ -176,21 +211,18 @@ func (b *DeleteBuilder) Limit(limit uint64) *DeleteBuilder {
 func (b *DeleteBuilder) Offset(offset uint64) *DeleteBuilder {
 	b.offset = offset
 	b.offsetValid = true
-
 	return b
 }
 
 // Suffix adds an expression to the end of the query
 func (b *DeleteBuilder) Suffix(sql string, args ...interface{}) *DeleteBuilder {
 	b.suffixes = append(b.suffixes, Expr(sql, args...))
-
 	return b
 }
 
 // JoinClause adds a join clause to the query.
 func (b *DeleteBuilder) JoinClause(join string) *DeleteBuilder {
 	b.joins = append(b.joins, join)
-
 	return b
 }
 
