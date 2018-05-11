@@ -30,7 +30,7 @@ func NewInsertBuilder(b StatementBuilderType) *InsertBuilder {
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
 func (b *InsertBuilder) RunWith(runner BaseRunner) *InsertBuilder {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 

@@ -37,7 +37,7 @@ func NewDeleteBuilder(b StatementBuilderType) *DeleteBuilder {
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
 func (b *DeleteBuilder) RunWith(runner BaseRunner) *DeleteBuilder {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 

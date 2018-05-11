@@ -133,3 +133,42 @@ func QueryRowWithContext(ctx context.Context, db QueryRowerContext, s Sqlizer) R
 	query, args, err := s.ToSql()
 	return &Row{RowScanner: db.QueryRowContext(ctx, query, args...), err: err}
 }
+
+// DBRunner wraps sql.DB to implement Runner.
+type dbRunner struct {
+	*sql.DB
+}
+
+func (r *dbRunner) QueryRow(query string, args ...interface{}) RowScanner {
+	return r.DB.QueryRow(query, args...)
+}
+
+func (r *dbRunner) QueryRowContext(ctx context.Context, query string, args ...interface{}) RowScanner {
+	return r.DB.QueryRowContext(ctx, query, args...)
+}
+
+// TxRunner wraps sql.Tx to implement Runner.
+type txRunner struct {
+	*sql.Tx
+}
+
+func (r *txRunner) QueryRow(query string, args ...interface{}) RowScanner {
+	return r.Tx.QueryRow(query, args...)
+}
+
+func (r *txRunner) QueryRowContext(ctx context.Context, query string, args ...interface{}) RowScanner {
+	return r.Tx.QueryRowContext(ctx, query, args...)
+}
+
+// WrapRunner returns Runner that implements QueryRower and QueryRowerContext.
+func wrapRunner(baseRunner BaseRunner) (runner Runner) {
+	switch r := baseRunner.(type) {
+	case Runner:
+		runner = r
+	case *sql.DB:
+		runner = &dbRunner{r}
+	case *sql.Tx:
+		runner = &txRunner{r}
+	}
+	return
+}
