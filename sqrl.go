@@ -160,15 +160,15 @@ func (r *txRunner) QueryRowContext(ctx context.Context, query string, args ...in
 	return r.Tx.QueryRowContext(ctx, query, args...)
 }
 
-// WrapRunner returns Runner that implements QueryRower and QueryRowerContext.
-func wrapRunner(baseRunner BaseRunner) (runner Runner) {
+// WrapRunner returns Runner for sql.DB and sql.Tx, or BaseRunner otherwise.
+func wrapRunner(baseRunner BaseRunner) (runner BaseRunner) {
 	switch r := baseRunner.(type) {
-	case Runner:
-		runner = r
 	case *sql.DB:
 		runner = &dbRunner{r}
 	case *sql.Tx:
 		runner = &txRunner{r}
+	default:
+		runner = r
 	}
 	return
 }
