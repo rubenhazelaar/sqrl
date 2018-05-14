@@ -123,15 +123,30 @@ func TestDeleteBuilderPlaceholders(t *testing.T) {
 
 func TestDeleteBuilderRunners(t *testing.T) {
 	db := &DBStub{}
-	b := Delete("test").Where("x = ?", 1).RunWith(db)
+	b := Delete("test").Where("x = ?", 1).Suffix("RETURNING y").RunWith(db)
 
-	expectedSql := "DELETE FROM test WHERE x = ?"
+	expectedSql := "DELETE FROM test WHERE x = ? RETURNING y"
 
 	b.Exec()
 	assert.Equal(t, expectedSql, db.LastExecSql)
 
+	b.Query()
+	assert.Equal(t, expectedSql, db.LastQuerySql)
+
+	b.QueryRow()
+	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+
 	b.ExecContext(context.TODO())
 	assert.Equal(t, expectedSql, db.LastExecSql)
+
+	b.QueryContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastQuerySql)
+
+	b.QueryRowContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+
+	err := b.Scan()
+	assert.NoError(t, err)
 }
 
 func TestDeleteBuilderNoRunner(t *testing.T) {
@@ -140,7 +155,16 @@ func TestDeleteBuilderNoRunner(t *testing.T) {
 	_, err := b.Exec()
 	assert.Equal(t, ErrRunnerNotSet, err)
 
+	_, err = b.Query()
+	assert.Equal(t, ErrRunnerNotSet, err)
+
 	_, err = b.ExecContext(context.TODO())
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	_, err = b.QueryContext(context.TODO())
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	err = b.Scan()
 	assert.Equal(t, ErrRunnerNotSet, err)
 }
 
