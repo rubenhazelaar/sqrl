@@ -50,15 +50,30 @@ func TestInsertBuilderPlaceholders(t *testing.T) {
 
 func TestInsertBuilderRunners(t *testing.T) {
 	db := &DBStub{}
-	b := Insert("test").Values(1).RunWith(db)
+	b := Insert("test").Values(1).Suffix("RETURNING y").RunWith(db)
 
-	expectedSql := "INSERT INTO test VALUES (?)"
+	expectedSql := "INSERT INTO test VALUES (?) RETURNING y"
 
 	b.Exec()
 	assert.Equal(t, expectedSql, db.LastExecSql)
 
+	b.Query()
+	assert.Equal(t, expectedSql, db.LastQuerySql)
+
+	b.QueryRow()
+	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+
 	b.ExecContext(context.TODO())
 	assert.Equal(t, expectedSql, db.LastExecSql)
+
+	b.QueryContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastQuerySql)
+
+	b.QueryRowContext(context.TODO())
+	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+
+	err := b.Scan()
+	assert.NoError(t, err)
 
 }
 
@@ -68,7 +83,16 @@ func TestInsertBuilderNoRunner(t *testing.T) {
 	_, err := b.Exec()
 	assert.Equal(t, ErrRunnerNotSet, err)
 
+	_, err = b.Query()
+	assert.Equal(t, ErrRunnerNotSet, err)
+
 	_, err = b.ExecContext(context.TODO())
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	_, err = b.QueryContext(context.TODO())
+	assert.Equal(t, ErrRunnerNotSet, err)
+
+	err = b.Scan()
 	assert.Equal(t, ErrRunnerNotSet, err)
 }
 
