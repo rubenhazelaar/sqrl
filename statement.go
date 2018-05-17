@@ -34,7 +34,7 @@ func (b StatementBuilderType) PlaceholderFormat(f PlaceholderFormat) StatementBu
 
 // RunWith sets the RunWith field for any child builders.
 func (b StatementBuilderType) RunWith(runner BaseRunner) StatementBuilderType {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 

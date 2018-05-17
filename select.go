@@ -39,7 +39,7 @@ func NewSelectBuilder(b StatementBuilderType) *SelectBuilder {
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
 func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 
