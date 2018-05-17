@@ -55,7 +55,6 @@ func TestSelectBuilderToSql(t *testing.T) {
 
 func BenchmarkSelectBuilderToSql(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-
 		qb := Select("a", "b").
 			Prefix("WITH prefix AS ?", 0).
 			Distinct().
@@ -145,7 +144,7 @@ func TestSelectBuilderRunners(t *testing.T) {
 	assert.Equal(t, expectedSql, db.LastQueryRowSql)
 
 	b.QueryContext(context.TODO())
-	assert.Equal(t, expectedSql, db.LastQueryRowSql)
+	assert.Equal(t, expectedSql, db.LastQuerySql)
 
 	b.QueryRowContext(context.TODO())
 	assert.Equal(t, expectedSql, db.LastQueryRowSql)
@@ -163,10 +162,10 @@ func TestSelectBuilderNoRunner(t *testing.T) {
 	_, err = b.Query()
 	assert.Equal(t, ErrRunnerNotSet, err)
 
-	_, err = b.QueryContext(context.TODO())
+	_, err = b.ExecContext(context.TODO())
 	assert.Equal(t, ErrRunnerNotSet, err)
 
-	_, err = b.ExecContext(context.TODO())
+	_, err = b.QueryContext(context.TODO())
 	assert.Equal(t, ErrRunnerNotSet, err)
 
 	err = b.Scan()
@@ -174,7 +173,6 @@ func TestSelectBuilderNoRunner(t *testing.T) {
 }
 
 func TestSelectBuilderSimpleJoin(t *testing.T) {
-
 	expectedSql := "SELECT * FROM bar JOIN baz ON bar.foo = baz.foo"
 	expectedArgs := []interface{}(nil)
 
@@ -188,7 +186,6 @@ func TestSelectBuilderSimpleJoin(t *testing.T) {
 }
 
 func TestSelectBuilderParamJoin(t *testing.T) {
-
 	expectedSql := "SELECT * FROM bar JOIN baz ON bar.foo = baz.foo AND baz.foo = ?"
 	expectedArgs := []interface{}{42}
 
@@ -202,7 +199,6 @@ func TestSelectBuilderParamJoin(t *testing.T) {
 }
 
 func TestSelectBuilderNestedSelectJoin(t *testing.T) {
-
 	expectedSql := "SELECT * FROM bar JOIN ( SELECT * FROM baz WHERE foo = ? ) r ON bar.foo = r.foo"
 	expectedArgs := []interface{}{42}
 
