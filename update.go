@@ -23,6 +23,7 @@ type UpdateBuilder struct {
 
 	prefixes   exprs
 	table      string
+	from       Sqlizer
 	setClauses []setClause
 	whereParts []Sqlizer
 	orderBys   []string
@@ -142,6 +143,14 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 	sql.WriteString(strings.Join(setSqls, ", "))
 
+	if b.from != nil {
+		sql.WriteString(" FROM ")
+		args, err = appendToSql([]Sqlizer{b.from}, sql, "", args)
+		if err != nil {
+			return
+		}
+	}
+
 	if len(b.whereParts) > 0 {
 		sql.WriteString(" WHERE ")
 		args, err = appendToSql(b.whereParts, sql, " AND ", args)
@@ -216,6 +225,12 @@ func (b *UpdateBuilder) SetMap(clauses map[string]interface{}) *UpdateBuilder {
 // See SelectBuilder.Where for more information.
 func (b *UpdateBuilder) Where(pred interface{}, args ...interface{}) *UpdateBuilder {
 	b.whereParts = append(b.whereParts, newWherePart(pred, args...))
+	return b
+}
+
+// From sets the FROM clause of the query.
+func (b *UpdateBuilder) From(table string) *UpdateBuilder {
+	b.from = newPart(table)
 	return b
 }
 

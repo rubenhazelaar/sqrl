@@ -87,6 +87,16 @@ sql, args, err := sq.Delete("a1", "a2").
 
 Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains PostgreSQL specific operators.
 
+#### [Update from](https://www.postgresql.org/docs/current/static/sql-update.html)
+
+```go
+sql, args, err := sq.Update("a1").
+    Set("foo", 1).
+    From("a2").
+    Where("id = a2.id AND a2.id=?", 42).
+    ToSql()
+```
+
 #### [JSON values](https://www.postgresql.org/docs/current/static/functions-json.html)
 
 JSON and JSONB use json.Marshal to serialize values and cast them to appropriate column type.
