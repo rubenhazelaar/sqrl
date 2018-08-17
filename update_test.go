@@ -33,7 +33,7 @@ func TestUpdateBuilderToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
-func TestUpdateFrom(t *testing.T) {
+func TestUpdateBuilderFrom(t *testing.T) {
 	b := Update("a").
 		Set("foo", 1).
 		From("b").

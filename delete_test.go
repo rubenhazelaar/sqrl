@@ -93,6 +93,17 @@ func TestDeleteSqlMultipleTables(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestDeleteUsing(t *testing.T) {
+	b := Delete("a1").
+		Using("a2").
+		Where("id = a2.ref_id AND a2.num = ?", 42)
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "DELETE FROM a1 USING a2 WHERE id = a2.ref_id AND a2.num = ?", sql)
+	assert.Equal(t, []interface{}{42}, args)
+}
+
 func TestDeleteBuilderZeroOffsetLimit(t *testing.T) {
 	qb := Delete("").
 		From("b").

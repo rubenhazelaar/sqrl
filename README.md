@@ -93,7 +93,15 @@ Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains PostgreSQL sp
 sql, args, err := sq.Update("a1").
     Set("foo", 1).
     From("a2").
-    Where("id = a2.id AND a2.id=?", 42).
+    Where("id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
+
+#### [Delete using](https://www.postgresql.org/docs/current/static/sql-delete.html)
+```go
+sql, args, err := sq.Delete("a1").
+    Using("a2").
+    Where("id = a2.ref_id AND a2.num = ?", 42).
     ToSql()
 ```
 

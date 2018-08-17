@@ -19,6 +19,7 @@ type DeleteBuilder struct {
 	what       []string
 	from       string
 	joins      []string
+	using      Sqlizer
 	whereParts []Sqlizer
 	orderBys   []string
 
@@ -126,6 +127,14 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(strings.Join(b.joins, " "))
 	}
 
+	if b.using != nil {
+		sql.WriteString(" USING ")
+		args, err = appendToSql([]Sqlizer{b.using}, sql, "", args)
+		if err != nil {
+			return
+		}
+	}
+
 	if len(b.whereParts) > 0 {
 		sql.WriteString(" WHERE ")
 		args, err = appendToSql(b.whereParts, sql, " AND ", args)
@@ -185,6 +194,11 @@ func (b *DeleteBuilder) What(what ...string) *DeleteBuilder {
 		b.From(filteredWhat[0])
 	}
 
+	return b
+}
+
+func (b *DeleteBuilder) Using(table string) *DeleteBuilder {
+	b.using = newPart(table)
 	return b
 }
 
