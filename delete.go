@@ -19,7 +19,7 @@ type DeleteBuilder struct {
 	what       []string
 	from       string
 	joins      []string
-	using      Sqlizer
+	usingParts []Sqlizer
 	whereParts []Sqlizer
 	orderBys   []string
 
@@ -127,9 +127,9 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(strings.Join(b.joins, " "))
 	}
 
-	if b.using != nil {
+	if len(b.usingParts) > 0 {
 		sql.WriteString(" USING ")
-		args, err = appendToSql([]Sqlizer{b.using}, sql, "", args)
+		args, err = appendToSql(b.usingParts, sql, ", ", args)
 		if err != nil {
 			return
 		}
@@ -197,8 +197,24 @@ func (b *DeleteBuilder) What(what ...string) *DeleteBuilder {
 	return b
 }
 
-func (b *DeleteBuilder) Using(table string) *DeleteBuilder {
-	b.using = newPart(table)
+// Using sets the USING clause of the query.
+//
+// DELETE ... USING is an MySQL/PostgreSQL specific extension
+func (b *DeleteBuilder) Using(tables ...string) *DeleteBuilder {
+	parts := make([]Sqlizer, len(tables))
+	for i, table := range tables {
+		parts[i] = newPart(table)
+	}
+
+	b.usingParts = append(b.usingParts, parts...)
+	return b
+}
+
+// UsingSelect sets a subquery into the USING clause of the query.
+//
+// DELETE ... USING is an MySQL/PostgreSQL specific extension
+func (b *DeleteBuilder) UsingSelect(from *SelectBuilder, alias string) *DeleteBuilder {
+	b.usingParts = append(b.usingParts, Alias(from, alias))
 	return b
 }
 

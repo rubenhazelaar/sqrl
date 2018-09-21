@@ -83,6 +83,13 @@ sql, args, err := sq.Delete("a1", "a2").
     ToSql()
 ```
 
+```go
+sql, args, err := sq.Delete("a1").
+    Using("a2").
+    Where("a1.id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
+
 ### PostgreSQL-specific functions
 
 Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains PostgreSQL specific operators.

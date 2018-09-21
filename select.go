@@ -17,7 +17,7 @@ type SelectBuilder struct {
 	distinct    bool
 	options     []string
 	columns     []Sqlizer
-	from        Sqlizer
+	fromParts   []Sqlizer
 	joins       []Sqlizer
 	whereParts  []Sqlizer
 	groupBys    []string
@@ -129,9 +129,9 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		}
 	}
 
-	if b.from != nil {
+	if len(b.fromParts) > 0 {
 		sql.WriteString(" FROM ")
-		args, err = appendToSql([]Sqlizer{b.from}, sql, "", args)
+		args, err = appendToSql(b.fromParts, sql, ", ", args)
 		if err != nil {
 			return
 		}
@@ -233,14 +233,19 @@ func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectB
 }
 
 // From sets the FROM clause of the query.
-func (b *SelectBuilder) From(from string) *SelectBuilder {
-	b.from = newPart(from)
+func (b *SelectBuilder) From(tables ...string) *SelectBuilder {
+	parts := make([]Sqlizer, len(tables))
+	for i, table := range tables {
+		parts[i] = newPart(table)
+	}
+
+	b.fromParts = append(b.fromParts, parts...)
 	return b
 }
 
 // FromSelect sets a subquery into the FROM clause of the query.
 func (b *SelectBuilder) FromSelect(from *SelectBuilder, alias string) *SelectBuilder {
-	b.from = Alias(from, alias)
+	b.fromParts = append(b.fromParts, Alias(from, alias))
 	return b
 }
 
