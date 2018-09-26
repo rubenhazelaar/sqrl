@@ -33,6 +33,19 @@ func TestUpdateBuilderToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestUpdateBuilderFrom(t *testing.T) {
+	b := Update("a").
+		Set("foo", 1).
+		From("b").
+		Where("id = b.id").
+		Where(Eq{"b.id": 42})
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "UPDATE a SET foo = ? FROM b WHERE id = b.id AND b.id = ?", sql)
+	assert.Equal(t, []interface{}{1, 42}, args)
+}
+
 func TestUpdateBuilderZeroOffsetLimit(t *testing.T) {
 	qb := Update("a").
 		Set("b", true).

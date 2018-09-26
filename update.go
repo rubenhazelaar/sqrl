@@ -23,6 +23,7 @@ type UpdateBuilder struct {
 
 	prefixes   exprs
 	table      string
+	fromParts  []Sqlizer
 	setClauses []setClause
 	whereParts []Sqlizer
 	orderBys   []string
@@ -142,6 +143,14 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 	sql.WriteString(strings.Join(setSqls, ", "))
 
+	if len(b.fromParts) > 0 {
+		sql.WriteString(" FROM ")
+		args, err = appendToSql(b.fromParts, sql, ", ", args)
+		if err != nil {
+			return
+		}
+	}
+
 	if len(b.whereParts) > 0 {
 		sql.WriteString(" WHERE ")
 		args, err = appendToSql(b.whereParts, sql, " AND ", args)
@@ -216,6 +225,27 @@ func (b *UpdateBuilder) SetMap(clauses map[string]interface{}) *UpdateBuilder {
 // See SelectBuilder.Where for more information.
 func (b *UpdateBuilder) Where(pred interface{}, args ...interface{}) *UpdateBuilder {
 	b.whereParts = append(b.whereParts, newWherePart(pred, args...))
+	return b
+}
+
+// From sets the FROM clause of the query.
+//
+// UPDATE ... FROM is an PostgreSQL specific extension
+func (b *UpdateBuilder) From(tables ...string) *UpdateBuilder {
+	parts := make([]Sqlizer, len(tables))
+	for i, table := range tables {
+		parts[i] = newPart(table)
+	}
+
+	b.fromParts = append(b.fromParts, parts...)
+	return b
+}
+
+// FromSelect sets a subquery into the FROM clause of the query.
+//
+// UPDATE ... FROM is an PostgreSQL specific extension
+func (b *UpdateBuilder) FromSelect(from *SelectBuilder, alias string) *UpdateBuilder {
+	b.fromParts = append(b.fromParts, Alias(from, alias))
 	return b
 }
 

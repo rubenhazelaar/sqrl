@@ -83,9 +83,34 @@ sql, args, err := sq.Delete("a1", "a2").
     ToSql()
 ```
 
+```go
+sql, args, err := sq.Delete("a1").
+    Using("a2").
+    Where("a1.id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
+
 ### PostgreSQL-specific functions
 
 Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains PostgreSQL specific operators.
+
+#### [Update from](https://www.postgresql.org/docs/current/static/sql-update.html)
+
+```go
+sql, args, err := sq.Update("a1").
+    Set("foo", 1).
+    From("a2").
+    Where("id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
+
+#### [Delete using](https://www.postgresql.org/docs/current/static/sql-delete.html)
+```go
+sql, args, err := sq.Delete("a1").
+    Using("a2").
+    Where("id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
 
 #### [JSON values](https://www.postgresql.org/docs/current/static/functions-json.html)
 
