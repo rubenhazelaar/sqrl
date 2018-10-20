@@ -112,6 +112,15 @@ sql, args, err := sq.Delete("a1").
     ToSql()
 ```
 
+#### [Returning clause](https://www.postgresql.org/docs/current/static/dml-returning.html)
+```go
+sql, args, err := Update("a").
+    Set("foo", 1).
+    Where("id = ?", 42).
+    Returning("bar").
+    ToSql()
+```
+
 #### [JSON values](https://www.postgresql.org/docs/current/static/functions-json.html)
 
 JSON and JSONB use json.Marshal to serialize values and cast them to appropriate column type.
