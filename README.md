@@ -6,8 +6,8 @@
 import "github.com/elgris/sqrl"
 ```
 
-[![GoDoc](https://godoc.org/github.com/elgris/sqrl?status.png)](https://godoc.org/github.com/elgris/sqrl)
-[![Build Status](https://travis-ci.org/elgris/sqrl.png?branch=master)](https://travis-ci.org/elgris/sqrl)
+[![GoDoc](https://godoc.org/github.com/elgris/sqrl?status.svg)](https://godoc.org/github.com/elgris/sqrl)
+[![Build Status](https://travis-ci.org/elgris/sqrl.svg?branch=master)](https://travis-ci.org/elgris/sqrl)
 
 **Requires Go 1.8 and higher**
 
