@@ -6,8 +6,10 @@
 import "github.com/elgris/sqrl"
 ```
 
-[![GoDoc](https://godoc.org/github.com/elgris/sqrl?status.png)](https://godoc.org/github.com/elgris/sqrl)
-[![Build Status](https://travis-ci.org/elgris/sqrl.png?branch=master)](https://travis-ci.org/elgris/sqrl)
+[![GoDoc](https://godoc.org/github.com/elgris/sqrl?status.svg)](https://godoc.org/github.com/elgris/sqrl)
+[![Build Status](https://travis-ci.org/elgris/sqrl.svg?branch=master)](https://travis-ci.org/elgris/sqrl)
+
+**Requires Go 1.8 and higher**
 
 ## Inspired by
 
@@ -67,6 +69,78 @@ Build conditional queries with ease:
 if len(q) > 0 {
     users = users.Where("name LIKE ?", q)
 }
+```
+
+### MySQL-specific functions
+
+#### [Multi-table delete](https://dev.mysql.com/doc/refman/5.7/en/delete.html)
+
+```go
+sql, args, err := sq.Delete("a1", "a2").
+    From("z1 AS a1").
+    JoinClause("INNER JOIN a2 ON a1.id = a2.ref_id").
+    Where("b = ?", 1).
+    ToSql()
+```
+
+```go
+sql, args, err := sq.Delete("a1").
+    Using("a2").
+    Where("a1.id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
+
+### PostgreSQL-specific functions
+
+Package [pg](https://godoc.org/github.com/elgris/sqrl/pg) contains PostgreSQL specific operators.
+
+#### [Update from](https://www.postgresql.org/docs/current/static/sql-update.html)
+
+```go
+sql, args, err := sq.Update("a1").
+    Set("foo", 1).
+    From("a2").
+    Where("id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
+
+#### [Delete using](https://www.postgresql.org/docs/current/static/sql-delete.html)
+```go
+sql, args, err := sq.Delete("a1").
+    Using("a2").
+    Where("id = a2.ref_id AND a2.num = ?", 42).
+    ToSql()
+```
+
+#### [Returning clause](https://www.postgresql.org/docs/current/static/dml-returning.html)
+```go
+sql, args, err := Update("a").
+    Set("foo", 1).
+    Where("id = ?", 42).
+    Returning("bar").
+    ToSql()
+```
+
+#### [JSON values](https://www.postgresql.org/docs/current/static/functions-json.html)
+
+JSON and JSONB use json.Marshal to serialize values and cast them to appropriate column type.
+
+```go
+sql, args, err := sq.Insert("posts").
+    Columns("content", "tags").
+    Values("Lorem Ipsum", pg.JSONB([]string{"foo", "bar"})).
+    ToSql()
+```
+
+#### [Array values](https://www.postgresql.org/docs/current/static/arrays.html)
+
+Array serializes single and multidimensional slices of string, int, float32 and float64 values.
+
+```go
+sql, args, err := sqrl.Insert("posts").
+    Columns("content", "tags").
+    Values("Lorem Ipsum", pg.Array([]string{"foo", "bar"})).
+    ToSql()
 ```
 
 ## License

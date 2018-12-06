@@ -2,6 +2,7 @@ package sqrl
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -14,9 +15,10 @@ type SelectBuilder struct {
 
 	prefixes    exprs
 	distinct    bool
+	options     []string
 	columns     []Sqlizer
-	from        string
-	joins       []string
+	fromParts   []Sqlizer
+	joins       []Sqlizer
 	whereParts  []Sqlizer
 	groupBys    []string
 	havingParts []Sqlizer
@@ -40,36 +42,50 @@ func NewSelectBuilder(b StatementBuilderType) *SelectBuilder {
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
 func (b *SelectBuilder) RunWith(runner BaseRunner) *SelectBuilder {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 
 // Exec builds and Execs the query with the Runner set by RunWith.
 func (b *SelectBuilder) Exec() (sql.Result, error) {
+	return b.ExecContext(context.Background())
+}
+
+// ExecContext builds and Execs the query with the Runner set by RunWith using given context.
+func (b *SelectBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
-	return ExecWith(b.runWith, b)
+	return ExecWithContext(ctx, b.runWith, b)
 }
 
 // Query builds and Querys the query with the Runner set by RunWith.
 func (b *SelectBuilder) Query() (*sql.Rows, error) {
+	return b.QueryContext(context.Background())
+}
+
+// QueryContext builds and Querys the query with the Runner set by RunWith in given context.
+func (b *SelectBuilder) QueryContext(ctx context.Context) (*sql.Rows, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
-	return QueryWith(b.runWith, b)
+	return QueryWithContext(ctx, b.runWith, b)
 }
 
 // QueryRow builds and QueryRows the query with the Runner set by RunWith.
 func (b *SelectBuilder) QueryRow() RowScanner {
+	return b.QueryRowContext(context.Background())
+}
+
+func (b *SelectBuilder) QueryRowContext(ctx context.Context) RowScanner {
 	if b.runWith == nil {
 		return &Row{err: ErrRunnerNotSet}
 	}
-	queryRower, ok := b.runWith.(QueryRower)
+	queryRower, ok := b.runWith.(QueryRowerContext)
 	if !ok {
-		return &Row{err: ErrRunnerNotQueryRunner}
+		return &Row{err: ErrRunnerNotQueryRunnerContext}
 	}
-	return QueryRowWith(queryRower, b)
+	return QueryRowWithContext(ctx, queryRower, b)
 }
 
 // Scan is a shortcut for QueryRow().Scan.
@@ -104,6 +120,11 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString("DISTINCT ")
 	}
 
+	if len(b.options) > 0 {
+		sql.WriteString(strings.Join(b.options, " "))
+		sql.WriteString(" ")
+	}
+
 	if b.topValid {
 		sql.WriteString("TOP ")
 		sql.WriteString(strconv.FormatUint(b.top, 10))
@@ -117,14 +138,20 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		}
 	}
 
-	if len(b.from) > 0 {
+	if len(b.fromParts) > 0 {
 		sql.WriteString(" FROM ")
-		sql.WriteString(b.from)
+		args, err = appendToSql(b.fromParts, sql, ", ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.joins) > 0 {
 		sql.WriteString(" ")
-		sql.WriteString(strings.Join(b.joins, " "))
+		args, err = appendToSql(b.joins, sql, " ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.whereParts) > 0 {
@@ -187,6 +214,14 @@ func (b *SelectBuilder) Distinct() *SelectBuilder {
 	return b
 }
 
+// Options adds select option to the query
+func (b *SelectBuilder) Options(options ...string) *SelectBuilder {
+	for _, str := range options {
+		b.options = append(b.options, str)
+	}
+	return b
+}
+
 // Columns adds result columns to the query.
 func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 	for _, str := range columns {
@@ -207,31 +242,42 @@ func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectB
 }
 
 // From sets the FROM clause of the query.
-func (b *SelectBuilder) From(from string) *SelectBuilder {
-	b.from = from
+func (b *SelectBuilder) From(tables ...string) *SelectBuilder {
+	parts := make([]Sqlizer, len(tables))
+	for i, table := range tables {
+		parts[i] = newPart(table)
+	}
+
+	b.fromParts = append(b.fromParts, parts...)
+	return b
+}
+
+// FromSelect sets a subquery into the FROM clause of the query.
+func (b *SelectBuilder) FromSelect(from *SelectBuilder, alias string) *SelectBuilder {
+	b.fromParts = append(b.fromParts, Alias(from, alias))
 	return b
 }
 
 // JoinClause adds a join clause to the query.
-func (b *SelectBuilder) JoinClause(join string) *SelectBuilder {
-	b.joins = append(b.joins, join)
+func (b *SelectBuilder) JoinClause(pred interface{}, args ...interface{}) *SelectBuilder {
+	b.joins = append(b.joins, newPart(pred, args...))
 
 	return b
 }
 
 // Join adds a JOIN clause to the query.
-func (b *SelectBuilder) Join(join string) *SelectBuilder {
-	return b.JoinClause("JOIN " + join)
+func (b *SelectBuilder) Join(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("JOIN "+join, rest...)
 }
 
 // LeftJoin adds a LEFT JOIN clause to the query.
-func (b *SelectBuilder) LeftJoin(join string) *SelectBuilder {
-	return b.JoinClause("LEFT JOIN " + join)
+func (b *SelectBuilder) LeftJoin(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("LEFT JOIN "+join, rest...)
 }
 
 // RightJoin adds a RIGHT JOIN clause to the query.
-func (b *SelectBuilder) RightJoin(join string) *SelectBuilder {
-	return b.JoinClause("RIGHT JOIN " + join)
+func (b *SelectBuilder) RightJoin(join string, rest ...interface{}) *SelectBuilder {
+	return b.JoinClause("RIGHT JOIN "+join, rest...)
 }
 
 // Where adds an expression to the WHERE clause of the query.
