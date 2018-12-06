@@ -2,6 +2,7 @@ package sqrl
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"strconv"
@@ -14,9 +15,13 @@ import (
 type DeleteBuilder struct {
 	StatementBuilderType
 
+	returning
+
 	prefixes   exprs
+	what       []string
 	from       string
-	using	   []string
+	joins      []string
+	usingParts []Sqlizer
 	whereParts []Sqlizer
 	orderBys   []string
 
@@ -35,16 +40,56 @@ func NewDeleteBuilder(b StatementBuilderType) *DeleteBuilder {
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
 func (b *DeleteBuilder) RunWith(runner BaseRunner) *DeleteBuilder {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 
 // Exec builds and Execs the query with the Runner set by RunWith.
 func (b *DeleteBuilder) Exec() (sql.Result, error) {
+	return b.ExecContext(context.Background())
+}
+
+// Exec builds and Execs the query with the Runner set by RunWith using given context.
+func (b *DeleteBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
-	return ExecWith(b.runWith, b)
+	return ExecWithContext(ctx, b.runWith, b)
+}
+
+// Query builds and Querys the query with the Runner set by RunWith.
+func (b *DeleteBuilder) Query() (*sql.Rows, error) {
+	return b.QueryContext(context.Background())
+}
+
+// QueryContext builds and runs the query using given context and Query command.
+func (b *DeleteBuilder) QueryContext(ctx context.Context) (*sql.Rows, error) {
+	if b.runWith == nil {
+		return nil, ErrRunnerNotSet
+	}
+	return QueryWithContext(ctx, b.runWith, b)
+}
+
+// QueryRow builds and QueryRows the query with the Runner set by RunWith.
+func (b *DeleteBuilder) QueryRow() RowScanner {
+	return b.QueryRowContext(context.Background())
+}
+
+// QueryRowContext builds and runs the query using given context.
+func (b *DeleteBuilder) QueryRowContext(ctx context.Context) RowScanner {
+	if b.runWith == nil {
+		return &Row{err: ErrRunnerNotSet}
+	}
+	queryRower, ok := b.runWith.(QueryRowerContext)
+	if !ok {
+		return &Row{err: ErrRunnerNotQueryRunnerContext}
+	}
+	return QueryRowWithContext(ctx, queryRower, b)
+}
+
+// Scan is a shortcut for QueryRow().Scan.
+func (b *DeleteBuilder) Scan(dest ...interface{}) error {
+	return b.QueryRow().Scan(dest...)
 }
 
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
@@ -68,12 +113,28 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(" ")
 	}
 
-	sql.WriteString("DELETE FROM ")
+	sql.WriteString("DELETE ")
+	// following condition helps to avoid duplicate "from" value in DELETE query
+	// e.g. "DELETE a FROM a ..." which is valid for MySQL but not for PostgreSQL
+	if len(b.what) > 0 && (len(b.what) != 1 || b.what[0] != b.from) {
+		sql.WriteString(strings.Join(b.what, ", "))
+		sql.WriteString(" ")
+	}
+
+	sql.WriteString("FROM ")
 	sql.WriteString(b.from)
 
-	if len(b.using) > 0 {
+	if len(b.joins) > 0 {
+		sql.WriteString(" ")
+		sql.WriteString(strings.Join(b.joins, " "))
+	}
+
+	if len(b.usingParts) > 0 {
 		sql.WriteString(" USING ")
-		sql.WriteString(strings.Join(b.using,","))
+		args, err = appendToSql(b.usingParts, sql, ", ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.whereParts) > 0 {
@@ -100,6 +161,13 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		sql.WriteString(strconv.FormatUint(b.offset, 10))
 	}
 
+	if len(b.returning) > 0 {
+		args, err = b.returning.AppendToSql(sql, args)
+		if err != nil {
+			return
+		}
+	}
+
 	if len(b.suffixes) > 0 {
 		sql.WriteString(" ")
 		args, _ = b.suffixes.AppendToSql(sql, " ", args)
@@ -121,9 +189,41 @@ func (b *DeleteBuilder) From(from string) *DeleteBuilder {
 	return b
 }
 
-// Set Postgres USING clause of the query
+// What sets names of tables to be used for deleting from
+func (b *DeleteBuilder) What(what ...string) *DeleteBuilder {
+	filteredWhat := make([]string, 0, len(what))
+	for _, item := range what {
+		if len(item) > 0 {
+			filteredWhat = append(filteredWhat, item)
+		}
+	}
+
+	b.what = filteredWhat
+	if len(filteredWhat) == 1 {
+		b.From(filteredWhat[0])
+	}
+
+	return b
+}
+
+// Using sets the USING clause of the query.
+//
+// DELETE ... USING is an MySQL/PostgreSQL specific extension
 func (b *DeleteBuilder) Using(tables ...string) *DeleteBuilder {
-	b.using = append(b.using, tables...)
+	parts := make([]Sqlizer, len(tables))
+	for i, table := range tables {
+		parts[i] = newPart(table)
+	}
+
+	b.usingParts = append(b.usingParts, parts...)
+	return b
+}
+
+// UsingSelect sets a subquery into the USING clause of the query.
+//
+// DELETE ... USING is an MySQL/PostgreSQL specific extension
+func (b *DeleteBuilder) UsingSelect(from *SelectBuilder, alias string) *DeleteBuilder {
+	b.usingParts = append(b.usingParts, Alias(from, alias))
 	return b
 }
 
@@ -150,13 +250,48 @@ func (b *DeleteBuilder) Limit(limit uint64) *DeleteBuilder {
 func (b *DeleteBuilder) Offset(offset uint64) *DeleteBuilder {
 	b.offset = offset
 	b.offsetValid = true
+	return b
+}
 
+// Returning adds columns to RETURNING clause of the query
+//
+// DELETE ... RETURNING is PostgreSQL specific extension
+func (b *DeleteBuilder) Returning(columns ...string) *DeleteBuilder {
+	b.returning.Returning(columns...)
+	return b
+}
+
+// ReturningSelect adds subquery to RETURNING clause of the query
+//
+// DELETE ... RETURNING is PostgreSQL specific extension
+func (b *DeleteBuilder) ReturningSelect(from *SelectBuilder, alias string) *DeleteBuilder {
+	b.returning.ReturningSelect(from, alias)
 	return b
 }
 
 // Suffix adds an expression to the end of the query
 func (b *DeleteBuilder) Suffix(sql string, args ...interface{}) *DeleteBuilder {
 	b.suffixes = append(b.suffixes, Expr(sql, args...))
-
 	return b
+}
+
+// JoinClause adds a join clause to the query.
+func (b *DeleteBuilder) JoinClause(join string) *DeleteBuilder {
+	b.joins = append(b.joins, join)
+	return b
+}
+
+// Join adds a JOIN clause to the query.
+func (b *DeleteBuilder) Join(join string) *DeleteBuilder {
+	return b.JoinClause("JOIN " + join)
+}
+
+// LeftJoin adds a LEFT JOIN clause to the query.
+func (b *DeleteBuilder) LeftJoin(join string) *DeleteBuilder {
+	return b.JoinClause("LEFT JOIN " + join)
+}
+
+// RightJoin adds a RIGHT JOIN clause to the query.
+func (b *DeleteBuilder) RightJoin(join string) *DeleteBuilder {
+	return b.JoinClause("RIGHT JOIN " + join)
 }

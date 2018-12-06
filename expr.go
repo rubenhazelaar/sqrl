@@ -101,10 +101,11 @@ type Eq map[string]interface{}
 
 func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface{}, err error) {
 	var (
-		exprs    []string
-		equalOpr string = "="
-		inOpr    string = "IN"
-		nullOpr  string = "IS"
+		exprs      []string
+		equalOpr   = "="
+		inOpr      = "IN"
+		nullOpr    = "IS"
+		inEmptyExpr = "(1=0)" // Portable FALSE
 	)
 
 	switch {
@@ -112,11 +113,13 @@ func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface
 		equalOpr = "NOT LIKE"
 		inOpr = "NOT IN"
 		nullOpr = "IS NOT"
+		inEmptyExpr = "(1=1)"
 		break;
 	case useNotOpr:
 		equalOpr = "<>"
 		inOpr = "NOT IN"
 		nullOpr = "IS NOT"
+		inEmptyExpr = "(1=1)"
 		break;
 	case useLike:
 		equalOpr = "LIKE"
@@ -142,24 +145,26 @@ func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface
 			}
 
 			expr = fmt.Sprintf("%s %s NULL", key, nullOpr)
-
 		} else {
-			valVal := reflect.ValueOf(val)
-			if valVal.Kind() == reflect.Array || valVal.Kind() == reflect.Slice {
-				if valVal.Len() == 0 {
-					err = fmt.Errorf("equality condition must contain at least one paramater")
-					return
-				}
+			if isListType(val) {
+				valVal := reflect.ValueOf(val)
 
 				if useLike {
 					err = fmt.Errorf("cannot use like with a slice or an array")
 					return
 				}
 
-				for i := 0; i < valVal.Len(); i++ {
-					args = append(args, valVal.Index(i).Interface())
+				if valVal.Len() == 0 {
+					expr = inEmptyExpr
+					if args == nil {
+						args = []interface{}{}
+					}
+				} else {
+					for i := 0; i < valVal.Len(); i++ {
+						args = append(args, valVal.Index(i).Interface())
+					}
+					expr = fmt.Sprintf("%s %s (%s)", key, inOpr, Placeholders(valVal.Len()))
 				}
-				expr = fmt.Sprintf("%s %s (%s)", key, inOpr, Placeholders(valVal.Len()))
 			} else {
 				expr = fmt.Sprintf("%s %s ?", key, equalOpr)
 				args = append(args, val)
@@ -212,6 +217,84 @@ func (likeor LikeOr) ToSql() (sql string, args []interface{}, err error) {
 	return Eq(likeor).toSql(false, true, true)
 }
 
+// Lt is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(Lt{"id": 1})
+type Lt map[string]interface{}
+
+func (lt Lt) toSql(opposite, orEq bool) (sql string, args []interface{}, err error) {
+	var (
+		exprs []string
+		opr   string = "<"
+	)
+
+	if opposite {
+		opr = ">"
+	}
+
+	if orEq {
+		opr = fmt.Sprintf("%s%s", opr, "=")
+	}
+
+	for key, val := range lt {
+		expr := ""
+
+		switch v := val.(type) {
+		case driver.Valuer:
+			if val, err = v.Value(); err != nil {
+				return
+			}
+		}
+
+		if val == nil {
+			err = fmt.Errorf("cannot use null with less than or greater than operators")
+			return
+		} else {
+			if isListType(val) {
+				err = fmt.Errorf("cannot use array or slice with less than or greater than operators")
+				return
+			} else {
+				expr = fmt.Sprintf("%s %s ?", key, opr)
+				args = append(args, val)
+			}
+		}
+		exprs = append(exprs, expr)
+	}
+	sql = strings.Join(exprs, " AND ")
+	return
+}
+
+func (lt Lt) ToSql() (sql string, args []interface{}, err error) {
+	return lt.toSql(false, false)
+}
+
+// LtOrEq is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(LtOrEq{"id": 1}) == "id <= 1"
+type LtOrEq Lt
+
+func (ltOrEq LtOrEq) ToSql() (sql string, args []interface{}, err error) {
+	return Lt(ltOrEq).toSql(false, true)
+}
+
+// Gt is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(Gt{"id": 1}) == "id > 1"
+type Gt Lt
+
+func (gt Gt) ToSql() (sql string, args []interface{}, err error) {
+	return Lt(gt).toSql(true, false)
+}
+
+// GtOrEq is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(GtOrEq{"id": 1}) == "id >= 1"
+type GtOrEq Lt
+
+func (gtOrEq GtOrEq) ToSql() (sql string, args []interface{}, err error) {
+	return Lt(gtOrEq).toSql(true, true)
+}
+
 type conj []Sqlizer
 
 func (c conj) join(sep string) (sql string, args []interface{}, err error) {
@@ -244,12 +327,20 @@ func (a And) ToSql() (string, []interface{}, error) {
 
 // Or is syntactic sugar that glues where/having parts with OR clause
 // Ex:
-//     .Where(And{Expr("a > ?", 15), Expr("b < ?", 20), Expr("c is TRUE")})
+//     .Where(Or{Expr("a > ?", 15), Expr("b < ?", 20), Expr("c is TRUE")})
 type Or conj
 
 // ToSql builds the query into a SQL string and bound args.
 func (o Or) ToSql() (string, []interface{}, error) {
 	return conj(o).join(" OR ")
+}
+
+func isListType(val interface{}) bool {
+	if driver.IsValue(val) {
+		return false
+	}
+	valVal := reflect.ValueOf(val)
+	return valVal.Kind() == reflect.Array || valVal.Kind() == reflect.Slice
 }
 
 func hasSqlizer(args []interface{}) bool {

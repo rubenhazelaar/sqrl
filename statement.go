@@ -22,8 +22,8 @@ func (b StatementBuilderType) Update(table string) *UpdateBuilder {
 }
 
 // Delete returns a DeleteBuilder for this StatementBuilder.
-func (b StatementBuilderType) Delete(from string) *DeleteBuilder {
-	return NewDeleteBuilder(b).From(from)
+func (b StatementBuilderType) Delete(what ...string) *DeleteBuilder {
+	return NewDeleteBuilder(b).What(what...)
 }
 
 // PlaceholderFormat sets the PlaceholderFormat field for any child builders.
@@ -34,7 +34,7 @@ func (b StatementBuilderType) PlaceholderFormat(f PlaceholderFormat) StatementBu
 
 // RunWith sets the RunWith field for any child builders.
 func (b StatementBuilderType) RunWith(runner BaseRunner) StatementBuilderType {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 
@@ -63,11 +63,11 @@ func Update(table string) *UpdateBuilder {
 	return StatementBuilder.Update(table)
 }
 
-// Delete returns a new DeleteBuilder with the given table name.
+// Delete returns a new DeleteBuilder for given table names.
 //
 // See DeleteBuilder.Table.
-func Delete(from string) *DeleteBuilder {
-	return StatementBuilder.Delete(from)
+func Delete(what ...string) *DeleteBuilder {
+	return StatementBuilder.Delete(what...)
 }
 
 // Case returns a new CaseBuilder

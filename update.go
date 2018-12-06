@@ -2,6 +2,7 @@ package sqrl
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"fmt"
 	"sort"
@@ -20,10 +21,12 @@ type setClause struct {
 type UpdateBuilder struct {
 	StatementBuilderType
 
+	returning
+
 	prefixes   exprs
 	table      string
+	fromParts  []Sqlizer
 	setClauses []setClause
-	from []string
 	joins      []string
 	whereParts []Sqlizer
 	orderBys   []string
@@ -43,17 +46,56 @@ func NewUpdateBuilder(b StatementBuilderType) *UpdateBuilder {
 
 // RunWith sets a Runner (like database/sql.DB) to be used with e.g. Exec.
 func (b *UpdateBuilder) RunWith(runner BaseRunner) *UpdateBuilder {
-	b.runWith = runner
+	b.runWith = wrapRunner(runner)
 	return b
 }
 
 // Exec builds and Execs the query with the Runner set by RunWith.
 func (b *UpdateBuilder) Exec() (sql.Result, error) {
+	return b.ExecContext(context.Background())
+}
+
+// ExecContext builds and Execs the query with the Runner set by RunWith using given context.
+func (b *UpdateBuilder) ExecContext(ctx context.Context) (sql.Result, error) {
 	if b.runWith == nil {
 		return nil, ErrRunnerNotSet
 	}
+	return ExecWithContext(ctx, b.runWith, b)
+}
 
-	return ExecWith(b.runWith, b)
+// Query builds and Querys the query with the Runner set by RunWith.
+func (b *UpdateBuilder) Query() (*sql.Rows, error) {
+	return b.QueryContext(context.Background())
+}
+
+// QueryContext builds and runs the query using given context and Query command.
+func (b *UpdateBuilder) QueryContext(ctx context.Context) (*sql.Rows, error) {
+	if b.runWith == nil {
+		return nil, ErrRunnerNotSet
+	}
+	return QueryWithContext(ctx, b.runWith, b)
+}
+
+// QueryRow builds and QueryRows the query with the Runner set by RunWith.
+func (b *UpdateBuilder) QueryRow() RowScanner {
+	return b.QueryRowContext(context.Background())
+}
+
+// QueryRowContext builds and runs the query using given context.
+func (b *UpdateBuilder) QueryRowContext(ctx context.Context) RowScanner {
+	if b.runWith == nil {
+		return &Row{err: ErrRunnerNotSet}
+	}
+	queryRower, ok := b.runWith.(QueryRowerContext)
+	if !ok {
+		return &Row{err: ErrRunnerNotQueryRunnerContext}
+	}
+	return QueryRowWithContext(ctx, queryRower, b)
+}
+
+// Scan is a shortcut for QueryRow().Scan.
+func (b *UpdateBuilder) Scan(dest ...interface{}) error {
+	return b.QueryRow().Scan(dest...)
 }
 
 // PlaceholderFormat sets PlaceholderFormat (e.g. Question or Dollar) for the
@@ -104,10 +146,12 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	}
 	sql.WriteString(strings.Join(setSqls, ", "))
 
-	// Uses Postgresql syntax
-	if len(b.from) > 0 {
+	if len(b.fromParts) > 0 {
 		sql.WriteString(" FROM ")
-		sql.WriteString(strings.Join(b.from,","))
+		args, err = appendToSql(b.fromParts, sql, ", ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	// Uses SQL Server proprietary syntax
@@ -140,6 +184,13 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	if b.offsetValid {
 		sql.WriteString(" OFFSET ")
 		sql.WriteString(strconv.FormatUint(b.offset, 10))
+	}
+
+	if len(b.returning) > 0 {
+		args, err = b.returning.AppendToSql(sql, args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.suffixes) > 0 {
@@ -187,13 +238,6 @@ func (b *UpdateBuilder) SetMap(clauses map[string]interface{}) *UpdateBuilder {
 	return b
 }
 
-// Used with Postgres syntax
-func (b *UpdateBuilder) From(from ...string) *UpdateBuilder {
-	b.from = append(b.from, from...)
-
-	return b
-}
-
 // Used with SQL SERVER prorietary syntax
 // JoinClause adds a join clause to the query.
 func (b *UpdateBuilder) JoinClause(join string) *UpdateBuilder {
@@ -230,6 +274,27 @@ func (b *UpdateBuilder) Where(pred interface{}, args ...interface{}) *UpdateBuil
 	return b
 }
 
+// From adds tables to FROM clause of the query.
+//
+// UPDATE ... FROM is an PostgreSQL specific extension
+func (b *UpdateBuilder) From(tables ...string) *UpdateBuilder {
+	parts := make([]Sqlizer, len(tables))
+	for i, table := range tables {
+		parts[i] = newPart(table)
+	}
+
+	b.fromParts = append(b.fromParts, parts...)
+	return b
+}
+
+// FromSelect adds subquery to FROM clause of the query.
+//
+// UPDATE ... FROM is an PostgreSQL specific extension
+func (b *UpdateBuilder) FromSelect(from *SelectBuilder, alias string) *UpdateBuilder {
+	b.fromParts = append(b.fromParts, Alias(from, alias))
+	return b
+}
+
 // OrderBy adds ORDER BY expressions to the query.
 func (b *UpdateBuilder) OrderBy(orderBys ...string) *UpdateBuilder {
 	b.orderBys = append(b.orderBys, orderBys...)
@@ -250,9 +315,24 @@ func (b *UpdateBuilder) Offset(offset uint64) *UpdateBuilder {
 	return b
 }
 
+// Returning adds columns to RETURNING clause of the query
+//
+// UPDATE ... RETURNING is PostgreSQL specific extension
+func (b *UpdateBuilder) Returning(columns ...string) *UpdateBuilder {
+	b.returning.Returning(columns...)
+	return b
+}
+
+// ReturningSelect adds subquery to RETURNING clause of the query
+//
+// UPDATE ... RETURNING is PostgreSQL specific extension
+func (b *UpdateBuilder) ReturningSelect(from *SelectBuilder, alias string) *UpdateBuilder {
+	b.returning.ReturningSelect(from, alias)
+	return b
+}
+
 // Suffix adds an expression to the end of the query
 func (b *UpdateBuilder) Suffix(sql string, args ...interface{}) *UpdateBuilder {
 	b.suffixes = append(b.suffixes, Expr(sql, args...))
-
 	return b
 }
