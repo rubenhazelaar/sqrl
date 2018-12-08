@@ -242,3 +242,56 @@ func TestExprSqlizer(t *testing.T) {
 		assert.Equal(t, []interface{}{42, 42}, args)
 	}
 }
+
+func TestNestedExprQuery(t *testing.T) {
+	subs := Select("bbb").From("aaa").Where(Eq{"bbb": "ccc"})
+	b := Update("a").
+		Set("b", "c").
+		From("a AS aa").
+		Join("d ON d.b = aa.b").
+		Where("a.b = aa.b").
+		Where(Eq{"d.a": subs})
+
+	expectedSql := "UPDATE a SET b = ? " +
+		"FROM a AS aa " +
+		"JOIN d ON d.b = aa.b " +
+		"WHERE a.b = aa.b " +
+		"AND d.a IN (" +
+		"SELECT bbb FROM aaa WHERE bbb = ?" +
+		")"
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{"c", "ccc"}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestNestedExprQueryWithDollarPlaceholders(t *testing.T) {
+	subs := Select("bbb").From("aaa").Where(Eq{"bbb": "ccc"})
+	b := Update("a").
+		PlaceholderFormat(Dollar).
+		Set("b", "c").
+		From("a AS aa").
+		Join("d ON d.b = aa.b").
+		Where("a.b = aa.b").
+		Where(Eq{"d.a": subs}).
+		Where(Eq{"d.c": "ddd"})
+
+	expectedSql := "UPDATE a SET b = $1 " +
+		"FROM a AS aa " +
+		"JOIN d ON d.b = aa.b " +
+		"WHERE a.b = aa.b " +
+		"AND d.a IN (SELECT bbb FROM aaa WHERE bbb = $2) " +
+		"AND d.c = $3"
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{"c", "ccc", "ddd"}
+	assert.Equal(t, expectedArgs, args)
+}

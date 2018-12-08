@@ -136,6 +136,17 @@ func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface
 			if val, err = v.Value(); err != nil {
 				return
 			}
+			break
+		case *SelectBuilder:
+			// Placeholders will not be replaced
+			selectSql, sargs, err := v.toSql(false)
+			if err != nil {
+				return sql, args, err
+			}
+
+			exprs = append(exprs, fmt.Sprintf("%s %s (%s)", key, inOpr, selectSql))
+			args = append(args, sargs...)
+			continue
 		}
 
 		if val == nil {
