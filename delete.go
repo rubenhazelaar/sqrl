@@ -304,3 +304,38 @@ func (b *DeleteBuilder) RightJoin(join string, rest ...interface{}) *DeleteBuild
 func (b *DeleteBuilder) InnerJoin(join string) *DeleteBuilder {
 	return b.JoinClause("INNER JOIN " + join)
 }
+
+// Copy the *DeleteBuilder into a new *DeleteBuilder
+func (b *DeleteBuilder) Copy() *DeleteBuilder {
+	// First get the value of the builder by dereferencing it ...
+	vb := *b
+	// ... then make a shallow copy
+	nb := vb
+
+	// Then copy all reference types of the struct to make a deep copy
+	nb.returning = make(returning, len(vb.returning))
+	copy(nb.returning, vb.returning)
+
+	nb.prefixes = make(exprs, len(vb.prefixes))
+	copy(nb.prefixes, vb.prefixes)
+
+	nb.what = make([]string, len(vb.what))
+	copy(nb.what, vb.what)
+
+	nb.joins = make([]Sqlizer, len(vb.joins))
+	copy(nb.joins, vb.joins)
+
+	nb.usingParts = make([]Sqlizer, len(vb.usingParts))
+	copy(nb.usingParts, vb.usingParts)
+
+	nb.whereParts = make([]Sqlizer, len(vb.whereParts))
+	copy(nb.whereParts, vb.whereParts)
+
+	nb.orderBys = make([]string, len(vb.orderBys))
+	copy(nb.orderBys, vb.orderBys)
+
+	nb.suffixes = make(exprs, len(vb.suffixes))
+	copy(nb.suffixes, vb.suffixes)
+
+	return &nb
+}

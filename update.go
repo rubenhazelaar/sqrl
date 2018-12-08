@@ -337,3 +337,39 @@ func (b *UpdateBuilder) Suffix(sql string, args ...interface{}) *UpdateBuilder {
 	b.suffixes = append(b.suffixes, Expr(sql, args...))
 	return b
 }
+
+// Copy the *UpdateBuilder into a new *UpdateBuilder
+func (b *UpdateBuilder) Copy() *UpdateBuilder {
+	// First get the value of the builder by dereferencing it ...
+	vb := *b
+	// ... then make a shallow copy
+	nb := vb
+
+	// Then copy all reference types of the struct to make a deep copy
+	nb.returning = make(returning, len(vb.returning))
+	copy(nb.returning, vb.returning)
+
+	nb.prefixes = make(exprs, len(vb.prefixes))
+	copy(nb.prefixes, vb.prefixes)
+
+	nb.fromParts = make([]Sqlizer, len(vb.fromParts))
+	copy(nb.fromParts, vb.fromParts)
+
+	// TODO Should we not make a special case for setClause?
+	nb.setClauses = make([]setClause, len(vb.setClauses))
+	copy(nb.setClauses, vb.setClauses)
+
+	nb.joins = make([]Sqlizer, len(vb.joins))
+	copy(nb.joins, vb.joins)
+
+	nb.whereParts = make([]Sqlizer, len(vb.whereParts))
+	copy(nb.whereParts, vb.whereParts)
+
+	nb.orderBys = make([]string, len(vb.orderBys))
+	copy(nb.orderBys, vb.orderBys)
+
+	nb.suffixes = make(exprs, len(vb.suffixes))
+	copy(nb.suffixes, vb.suffixes)
+
+	return &nb
+}

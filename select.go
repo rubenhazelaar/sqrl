@@ -365,3 +365,41 @@ func (b *SelectBuilder) Top(top uint64) *SelectBuilder {
 	b.topValid = true
 	return b
 }
+
+// Copy the SelectBuilder into a new SelectBuilder
+func (b *SelectBuilder) Copy() *SelectBuilder {
+	// First get the value of the builder by dereferencing it ...
+	vb := *b
+	// ... then make a shallow copy
+	nb := vb
+
+	// Then copy all reference types of the struct to make a deep copy
+	nb.prefixes = make(exprs, len(vb.prefixes))
+	copy(nb.prefixes, vb.prefixes)
+	
+	nb.options = make([]string, len(vb.options))
+	copy(nb.options, vb.options)
+	
+	nb.fromParts = make([]Sqlizer, len(vb.fromParts))
+	copy(nb.fromParts, vb.fromParts)
+
+	nb.joins = make([]Sqlizer, len(vb.joins))
+	copy(nb.joins, vb.joins)
+
+	nb.whereParts = make([]Sqlizer, len(vb.whereParts))
+	copy(nb.whereParts, vb.whereParts)
+	
+	nb.groupBys = make([]string, len(vb.groupBys))
+	copy(nb.groupBys, vb.groupBys)
+	
+	nb.havingParts = make([]Sqlizer, len(vb.havingParts))
+	copy(nb.havingParts, vb.havingParts)
+	
+	nb.orderBys = make([]string, len(vb.orderBys))
+	copy(nb.orderBys, vb.orderBys)
+	
+	nb.suffixes = make(exprs, len(vb.suffixes))
+	copy(nb.suffixes, vb.suffixes)
+
+	return &nb
+}

@@ -221,3 +221,22 @@ func TestSelectWithOptions(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, "SELECT DISTINCT SQL_NO_CACHE * FROM foo", sql)
 }
+
+func TestSelectCopy(t *testing.T) {
+	s1 := Select("*").From("foo")
+	s2 := s1.Copy()
+
+	// Changes to both SelectBuilder which should not mix with each other
+	s1.Options("SQL_NO_CACHE")
+	s2.Join("baz ON bar.foo = baz.foo AND baz.foo = ?", 42).Distinct()
+
+	sql, _, err := s1.ToSql()
+	
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT SQL_NO_CACHE * FROM foo", sql)
+
+	sql, _, err = s2.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT DISTINCT * FROM foo JOIN baz ON bar.foo = baz.foo AND baz.foo = ?", sql)
+}

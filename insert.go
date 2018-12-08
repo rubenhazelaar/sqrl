@@ -16,13 +16,13 @@ type InsertBuilder struct {
 
 	returning
 
-	prefixes exprs
-	options  []string
-	into     string
-	columns  []string
-	values   [][]interface{}
-	suffixes exprs
-	iselect  *SelectBuilder
+	prefixes      exprs
+	options       []string
+	into          string
+	columns       []string
+	values        [][]interface{}
+	suffixes      exprs
+	iselect       *SelectBuilder
 	outputColumns []string
 }
 
@@ -294,8 +294,40 @@ func (b *InsertBuilder) Select(sb *SelectBuilder) *InsertBuilder {
 // Output adds an OUTPUT clause to the query
 func (b *InsertBuilder) Output(columns ...string) *InsertBuilder {
 	for _, str := range columns {
-		b.outputColumns = append(b.outputColumns, "INSERTED." + str)
+		b.outputColumns = append(b.outputColumns, "INSERTED."+str)
 	}
 
 	return b
+}
+
+// Copy the *InsertBuilder into a new *InsertBuilder
+func (b *InsertBuilder) Copy() *InsertBuilder {
+	// First get the value of the builder by dereferencing it ...
+	vb := *b
+	// ... then make a shallow copy
+	nb := vb
+
+	// Then copy all reference types of the struct to make a deep copy
+	nb.returning = make(returning, len(vb.returning))
+	copy(nb.returning, vb.returning)
+
+	nb.prefixes = make(exprs, len(vb.prefixes))
+	copy(nb.prefixes, vb.prefixes)
+
+	nb.options = make([]string, len(vb.options))
+	copy(nb.options, vb.options)
+
+	nb.columns = make([]string, len(vb.columns))
+	copy(nb.columns, vb.columns)
+
+	nb.values = make([][]interface{}, len(vb.values))
+	copy(nb.values, vb.values)
+
+	nb.suffixes = make(exprs, len(vb.suffixes))
+	copy(nb.suffixes, vb.suffixes)
+
+	nb.outputColumns = make([]string, len(vb.outputColumns))
+	copy(nb.outputColumns, vb.outputColumns)
+
+	return &nb
 }

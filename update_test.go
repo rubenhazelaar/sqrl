@@ -150,3 +150,26 @@ func TestUpdateBuilderNoRunner(t *testing.T) {
 	err = b.Scan()
 	assert.Equal(t, ErrRunnerNotSet, err)
 }
+
+func TestUpdateCopy(t *testing.T) {
+	s1 := Update("test").Set("a", 1)
+	s2 := s1.Copy()
+
+	// Changes to both UpdateBuilder which should not mix with each other
+	s1.Set("b", 2)
+	s2.Set("c", 3)
+
+	sql, args, err := s1.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "UPDATE test SET a = ?, b = ?", sql)
+	expectedArgs := []interface{}{1, 2}
+	assert.Equal(t, expectedArgs, args)
+
+	sql, args, err = s2.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "UPDATE test SET a = ?, c = ?", sql)
+	expectedArgs = []interface{}{1, 3}
+	assert.Equal(t, expectedArgs, args)
+}

@@ -145,3 +145,22 @@ func TestInsertBuilderSelect(t *testing.T) {
 	expectedArgs := []interface{}{1}
 	assert.Equal(t, expectedArgs, args)
 }
+
+func TestInsertCopy(t *testing.T) {
+	s1 := Insert("test").Columns("field1")
+	s2 := s1.Copy()
+
+	// Changes to both InsertBuilder which should not mix with each other
+	s1.Columns("field2").Values(1, 2)
+	s2.Columns("field3").Values(1, 3)
+
+	sql, _, err := s1.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "INSERT INTO test (field1,field2) VALUES (?,?)", sql)
+
+	sql, _, err = s2.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "INSERT INTO test (field1,field3) VALUES (?,?)", sql)
+}

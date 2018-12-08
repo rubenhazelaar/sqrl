@@ -229,3 +229,22 @@ func TestIssue11(t *testing.T) {
 	expectedArgs := []interface{}{1}
 	assert.Equal(t, expectedArgs, args)
 }
+
+func TestDeleteCopy(t *testing.T) {
+	s1 := Delete("test").Where(Eq{"a": 1})
+	s2 := s1.Copy()
+
+	// Changes to both DeleteBuilder which should not mix with each other
+	s1.Where(Eq{"b": 2})
+	s2.Where(Eq{"c": 3})
+
+	sql, _, err := s1.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "DELETE FROM test WHERE a = ? AND b = ?", sql)
+
+	sql, _, err = s2.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "DELETE FROM test WHERE a = ? AND c = ?", sql)
+}
