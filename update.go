@@ -27,7 +27,7 @@ type UpdateBuilder struct {
 	table      string
 	fromParts  []Sqlizer
 	setClauses []setClause
-	joins      []string
+	joins      []Sqlizer
 	whereParts []Sqlizer
 	orderBys   []string
 
@@ -156,10 +156,11 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 
 	// Uses SQL Server proprietary syntax
 	if len(b.joins) > 0 {
-		sql.WriteString(" FROM ")
-		sql.WriteString(b.table)
 		sql.WriteString(" ")
-		sql.WriteString(strings.Join(b.joins, " "))
+		args, err = appendToSql(b.joins, sql, " ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.whereParts) > 0 {
@@ -240,25 +241,25 @@ func (b *UpdateBuilder) SetMap(clauses map[string]interface{}) *UpdateBuilder {
 
 // Used with SQL SERVER prorietary syntax
 // JoinClause adds a join clause to the query.
-func (b *UpdateBuilder) JoinClause(join string) *UpdateBuilder {
-	b.joins = append(b.joins, join)
+func (b *UpdateBuilder) JoinClause(pred interface{}, args ...interface{}) *UpdateBuilder {
+	b.joins = append(b.joins, newPart(pred, args...))
 
 	return b
 }
 
 // Join adds a JOIN clause to the query.
-func (b *UpdateBuilder) Join(join string) *UpdateBuilder {
-	return b.JoinClause("JOIN " + join)
+func (b *UpdateBuilder) Join(join string, rest ...interface{}) *UpdateBuilder {
+	return b.JoinClause("JOIN "+join, rest...)
 }
 
 // LeftJoin adds a LEFT JOIN clause to the query.
-func (b *UpdateBuilder) LeftJoin(join string) *UpdateBuilder {
-	return b.JoinClause("LEFT JOIN " + join)
+func (b *UpdateBuilder) LeftJoin(join string, rest ...interface{}) *UpdateBuilder {
+	return b.JoinClause("LEFT JOIN "+join, rest...)
 }
 
 // RightJoin adds a RIGHT JOIN clause to the query.
-func (b *UpdateBuilder) RightJoin(join string) *UpdateBuilder {
-	return b.JoinClause("RIGHT JOIN " + join)
+func (b *UpdateBuilder) RightJoin(join string, rest ...interface{}) *UpdateBuilder {
+	return b.JoinClause("RIGHT JOIN "+join, rest...)
 }
 
 // InnerJoin adds a INNER JOIN clause to the query.

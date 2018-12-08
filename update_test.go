@@ -13,7 +13,7 @@ func TestUpdateBuilderToSql(t *testing.T) {
 		Table("a").
 		Set("b", Expr("? + 1", 1)).
 		SetMap(Eq{"c": 2}).
-		From("d","e").
+		From("d", "e").
 		Join("f ON f.id = a.id").
 		Where("e = ?", 3).
 		OrderBy("f").
@@ -26,7 +26,7 @@ func TestUpdateBuilderToSql(t *testing.T) {
 
 	expectedSql :=
 		"WITH prefix AS ? " +
-			"UPDATE a SET b = ? + 1, c = ? FROM d, e FROM a JOIN f ON f.id = a.id WHERE e = ? " +
+			"UPDATE a SET b = ? + 1, c = ? FROM d, e JOIN f ON f.id = a.id WHERE e = ? " +
 			"ORDER BY f LIMIT 4 OFFSET 5 " +
 			"RETURNING ?"
 	assert.Equal(t, expectedSql, sql)

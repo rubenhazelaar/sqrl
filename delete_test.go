@@ -11,7 +11,7 @@ func TestDeleteBuilderToSql(t *testing.T) {
 	b := Delete("").
 		Prefix("WITH prefix AS ?", 0).
 		From("a").
-		Using("b","c").
+		Using("b", "c").
 		Where("d = ?", 1).
 		OrderBy("e").
 		Limit(2).

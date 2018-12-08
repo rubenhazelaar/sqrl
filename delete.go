@@ -20,7 +20,7 @@ type DeleteBuilder struct {
 	prefixes   exprs
 	what       []string
 	from       string
-	joins      []string
+	joins      []Sqlizer
 	usingParts []Sqlizer
 	whereParts []Sqlizer
 	orderBys   []string
@@ -126,7 +126,10 @@ func (b *DeleteBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 
 	if len(b.joins) > 0 {
 		sql.WriteString(" ")
-		sql.WriteString(strings.Join(b.joins, " "))
+		args, err = appendToSql(b.joins, sql, " ", args)
+		if err != nil {
+			return
+		}
 	}
 
 	if len(b.usingParts) > 0 {
@@ -276,22 +279,28 @@ func (b *DeleteBuilder) Suffix(sql string, args ...interface{}) *DeleteBuilder {
 }
 
 // JoinClause adds a join clause to the query.
-func (b *DeleteBuilder) JoinClause(join string) *DeleteBuilder {
-	b.joins = append(b.joins, join)
+func (b *DeleteBuilder) JoinClause(pred interface{}, args ...interface{}) *DeleteBuilder {
+	b.joins = append(b.joins, newPart(pred, args...))
+
 	return b
 }
 
 // Join adds a JOIN clause to the query.
-func (b *DeleteBuilder) Join(join string) *DeleteBuilder {
-	return b.JoinClause("JOIN " + join)
+func (b *DeleteBuilder) Join(join string, rest ...interface{}) *DeleteBuilder {
+	return b.JoinClause("JOIN "+join, rest...)
 }
 
 // LeftJoin adds a LEFT JOIN clause to the query.
-func (b *DeleteBuilder) LeftJoin(join string) *DeleteBuilder {
-	return b.JoinClause("LEFT JOIN " + join)
+func (b *DeleteBuilder) LeftJoin(join string, rest ...interface{}) *DeleteBuilder {
+	return b.JoinClause("LEFT JOIN "+join, rest...)
 }
 
 // RightJoin adds a RIGHT JOIN clause to the query.
-func (b *DeleteBuilder) RightJoin(join string) *DeleteBuilder {
-	return b.JoinClause("RIGHT JOIN " + join)
+func (b *DeleteBuilder) RightJoin(join string, rest ...interface{}) *DeleteBuilder {
+	return b.JoinClause("RIGHT JOIN "+join, rest...)
+}
+
+// InnerJoin adds a INNER JOIN clause to the query.
+func (b *DeleteBuilder) InnerJoin(join string) *DeleteBuilder {
+	return b.JoinClause("INNER JOIN " + join)
 }

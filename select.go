@@ -102,6 +102,11 @@ func (b *SelectBuilder) PlaceholderFormat(f PlaceholderFormat) *SelectBuilder {
 
 // ToSql builds the query into a SQL string and bound args.
 func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
+	
+	return b.toSql(true)
+}
+
+func (b *SelectBuilder) toSql(replacePlaceholders bool) (sqlStr string, args []interface{}, err error) {
 	if len(b.columns) == 0 {
 		err = fmt.Errorf("select statements must have at least one result column")
 		return
@@ -196,7 +201,12 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 		args, _ = b.suffixes.AppendToSql(sql, " ", args)
 	}
 
-	sqlStr, err = b.placeholderFormat.ReplacePlaceholders(sql.String())
+	if replacePlaceholders {
+		sqlStr, err = b.placeholderFormat.ReplacePlaceholders(sql.String())
+	} else {
+		sqlStr = sql.String()
+	}
+
 	return
 
 }
@@ -278,6 +288,11 @@ func (b *SelectBuilder) LeftJoin(join string, rest ...interface{}) *SelectBuilde
 // RightJoin adds a RIGHT JOIN clause to the query.
 func (b *SelectBuilder) RightJoin(join string, rest ...interface{}) *SelectBuilder {
 	return b.JoinClause("RIGHT JOIN "+join, rest...)
+}
+
+// InnerJoin adds a INNER JOIN clause to the query.
+func (b *SelectBuilder) InnerJoin(join string) *SelectBuilder {
+	return b.JoinClause("INNER JOIN " + join)
 }
 
 // Where adds an expression to the WHERE clause of the query.
