@@ -102,7 +102,6 @@ func (b *SelectBuilder) PlaceholderFormat(f PlaceholderFormat) *SelectBuilder {
 
 // ToSql builds the query into a SQL string and bound args.
 func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
-	
 	return b.toSql(true)
 }
 
