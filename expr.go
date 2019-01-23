@@ -22,18 +22,18 @@ func Expr(sql string, args ...interface{}) expr {
 	return expr{sql: sql, args: args}
 }
 
-func (e expr) ToSql() (string, []interface{}, error) {
-	if !hasSqlizer(e.args) {
-		return e.sql, e.args, nil
+func (lt expr) ToSql() (string, []interface{}, error) {
+	if !hasSqlizer(lt.args) {
+		return lt.sql, lt.args, nil
 	}
 
-	args := make([]interface{}, 0, len(e.args))
-	sql, err := replacePlaceholders(e.sql, func(buf *bytes.Buffer, i int) error {
-		if i > len(e.args) {
+	args := make([]interface{}, 0, len(lt.args))
+	sql, err := replacePlaceholders(lt.sql, func(buf *bytes.Buffer, i int) error {
+		if i > len(lt.args) {
 			buf.WriteRune('?')
 			return nil
 		}
-		switch arg := e.args[i-1].(type) {
+		switch arg := lt.args[i-1].(type) {
 		case Sqlizer:
 			sql, vs, err := arg.ToSql()
 			if err != nil {
@@ -56,18 +56,18 @@ func (e expr) ToSql() (string, []interface{}, error) {
 type exprs []expr
 
 func (es exprs) AppendToSql(w io.Writer, sep string, args []interface{}) ([]interface{}, error) {
-	for i, e := range es {
+	for i, lt := range es {
 		if i > 0 {
 			_, err := io.WriteString(w, sep)
 			if err != nil {
 				return nil, err
 			}
 		}
-		_, err := io.WriteString(w, e.sql)
+		_, err := io.WriteString(w, lt.sql)
 		if err != nil {
 			return nil, err
 		}
-		args = append(args, e.args...)
+		args = append(args, lt.args...)
 	}
 	return args, nil
 }
@@ -86,10 +86,10 @@ func Alias(expr Sqlizer, alias string) aliasExpr {
 	return aliasExpr{expr, alias}
 }
 
-func (e aliasExpr) ToSql() (sql string, args []interface{}, err error) {
-	sql, args, err = e.expr.ToSql()
+func (lt aliasExpr) ToSql() (sql string, args []interface{}, err error) {
+	sql, args, err = lt.expr.ToSql()
 	if err == nil {
-		sql = fmt.Sprintf("(%s) AS %s", sql, e.alias)
+		sql = fmt.Sprintf("(%s) AS %s", sql, lt.alias)
 	}
 	return
 }
@@ -100,88 +100,17 @@ func (e aliasExpr) ToSql() (sql string, args []interface{}, err error) {
 type Eq map[string]interface{}
 
 func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface{}, err error) {
-	var (
-		exprs      []string
-		equalOpr   = "="
-		inOpr      = "IN"
-		nullOpr    = "IS"
-		inEmptyExpr = "(1=0)" // Portable FALSE
-	)
-
-	switch {
-	case useNotOpr && useLike:
-		equalOpr = "NOT LIKE"
-		inOpr = "NOT IN"
-		nullOpr = "IS NOT"
-		inEmptyExpr = "(1=1)"
-		break;
-	case useNotOpr:
-		equalOpr = "<>"
-		inOpr = "NOT IN"
-		nullOpr = "IS NOT"
-		inEmptyExpr = "(1=1)"
-		break;
-	case useLike:
-		equalOpr = "LIKE"
-		inOpr = "IN"
-		nullOpr = "IS"
-		break;
-	}
+	var exprs []string
+	o := newOperators(useNotOpr, useLike)
 
 	for key, val := range eq {
-		expr := ""
-
-		switch v := val.(type) {
-		case driver.Valuer:
-			if val, err = v.Value(); err != nil {
-				return
-			}
-			break
-		case *SelectBuilder:
-			// Placeholders will not be replaced
-			selectSql, sargs, err := v.toSql(false)
-			if err != nil {
-				return sql, args, err
-			}
-
-			exprs = append(exprs, fmt.Sprintf("%s %s (%s)", key, inOpr, selectSql))
-			args = append(args, sargs...)
-			continue
+		expr, sargs, err := keyVal(key, val, useLike, o)
+		if err != nil {
+			return sql, args, err
 		}
 
-		if val == nil {
-			if useLike {
-				err = fmt.Errorf("cannot use like with a slice or an array")
-				return
-			}
-
-			expr = fmt.Sprintf("%s %s NULL", key, nullOpr)
-		} else {
-			if isListType(val) {
-				valVal := reflect.ValueOf(val)
-
-				if useLike {
-					err = fmt.Errorf("cannot use like with a slice or an array")
-					return
-				}
-
-				if valVal.Len() == 0 {
-					expr = inEmptyExpr
-					if args == nil {
-						args = []interface{}{}
-					}
-				} else {
-					for i := 0; i < valVal.Len(); i++ {
-						args = append(args, valVal.Index(i).Interface())
-					}
-					expr = fmt.Sprintf("%s %s (%s)", key, inOpr, Placeholders(valVal.Len()))
-				}
-			} else {
-				expr = fmt.Sprintf("%s %s ?", key, equalOpr)
-				args = append(args, val)
-			}
-		}
 		exprs = append(exprs, expr)
+		args = append(args, sargs...)
 	}
 
 	if useOr {
@@ -204,8 +133,8 @@ func (eq Eq) ToSql() (sql string, args []interface{}, err error) {
 type NotEq Eq
 
 // ToSql builds the query into a SQL string and bound args.
-func (neq NotEq) ToSql() (sql string, args []interface{}, err error) {
-	return Eq(neq).toSql(true, false, false)
+func (s NotEq) ToSql() (sql string, args []interface{}, err error) {
+	return Eq(s).toSql(true, false, false)
 }
 
 // EqOr is syntactic sugar for use with Where/Having/Set methods.
@@ -362,4 +291,346 @@ func hasSqlizer(args []interface{}) bool {
 		}
 	}
 	return false
+}
+
+// Eq is syntactic sugar for use with Where/Having/Set methods.
+// It provides a stable alternative to Eq (which is a map in which order is random, this makes it hard to test)
+// Ex:
+//     .Where(NewEq().Append("id": 1)) == id = 1
+func NewEq() *EqSlice {
+	return &EqSlice{}
+}
+
+type EqSlice struct {
+	slice []columnValue
+}
+
+func (lt *EqSlice) Append(column string, value interface{}) *EqSlice {
+	lt.slice = append(lt.slice, columnValue{
+		column: column,
+		value:  value,
+	})
+
+	return lt
+}
+
+func (lt EqSlice) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface{}, err error) {
+	var exprs []string
+	o := newOperators(useNotOpr, useLike)
+
+	for _, cv := range lt.slice {
+		key := cv.column
+		val := cv.value
+
+		expr, sargs, err := keyVal(key, val, useLike, o)
+		if err != nil {
+			return sql, args, err
+		}
+
+		exprs = append(exprs, expr)
+		args = append(args, sargs...)
+	}
+
+	if useOr {
+		sql = strings.Join(exprs, " OR ")
+	} else {
+		sql = strings.Join(exprs, " AND ")
+	}
+
+	return
+}
+
+// ToSql builds the query into a SQL string and bound args.
+func (lt EqSlice) ToSql() (string, []interface{}, error) {
+	return lt.toSql(false, false, false)
+}
+
+// NotEq is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(NewNotEq().Append("id", 1)) == "id <> 1"
+func NewNotEq() *NotEqSlice {
+	return &NotEqSlice{}
+}
+
+type NotEqSlice struct {
+	EqSlice
+} 
+
+// ToSql builds the query into a SQL string and bound args.
+func (s NotEqSlice) ToSql() (sql string, args []interface{}, err error) {
+	return s.toSql(true, false, false)
+}
+
+func (s *NotEqSlice) Append(column string, value interface{}) *NotEqSlice {
+	s.EqSlice.Append(column, value)
+	return s
+}
+
+
+// EqOr is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(NewEqOr().Append("id", 1).Append("name", "Joe")) == "id = 1 OR name = 'Joe'"
+func NewEqOr() *EqOrSlice {
+	return &EqOrSlice{}
+}
+
+type EqOrSlice struct {
+	EqSlice
+}
+
+// ToSql builds the query into a SQL string and bound args.
+func (eqor EqOrSlice) ToSql() (sql string, args []interface{}, err error) {
+	return eqor.toSql(false, true, false)
+}
+
+func (s *EqOrSlice) Append(column string, value interface{}) *EqOrSlice {
+	s.EqSlice.Append(column, value)
+	return s
+}
+
+
+// LikeOr is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(NewLikeOr().Append("id", 1).Append(("name", "Joe")) == "id = 1 OR name = 'Joe'"
+func NewLikeOr() *LikeOrSlice {
+	return &LikeOrSlice{}
+}
+
+type LikeOrSlice struct {
+	EqSlice
+}
+
+// ToSql builds the query into a SQL string and bound args.
+func (likeor LikeOrSlice) ToSql() (sql string, args []interface{}, err error) {
+	return likeor.toSql(false, true, true)
+}
+
+func (s *LikeOrSlice) Append(column string, value interface{}) *LikeOrSlice {
+	s.EqSlice.Append(column, value)
+	return s
+}
+
+type columnValue struct {
+	column string
+	value  interface{}
+}
+
+func keyVal(key string, val interface{}, useLike bool, o operators) (expr string, args []interface{}, err error) {
+	switch v := val.(type) {
+	case *SelectBuilder:
+		// Placeholders will not be replaced
+		selectSql, sargs, err := v.toSql(false)
+		if err != nil {
+			return expr, args, err
+		}
+
+		expr = fmt.Sprintf("%s %s (%s)", key, o.inOpr, selectSql)
+		args = append(args, sargs...)
+
+		return expr, args, err
+	case driver.Valuer:
+		if val, err = v.Value(); err != nil {
+			return
+		}
+		break // Continue after break
+	}
+
+	if val == nil {
+		if useLike {
+			err = fmt.Errorf("cannot use like with a slice or an array")
+			return
+		}
+
+		expr = fmt.Sprintf("%s %s NULL", key, o.nullOpr)
+	} else {
+		if isListType(val) {
+			valVal := reflect.ValueOf(val)
+
+			if useLike {
+				err = fmt.Errorf("cannot use like with a slice or an array")
+				return
+			}
+
+			if valVal.Len() == 0 {
+				expr = o.inEmptyExpr
+				if args == nil {
+					args = []interface{}{}
+				}
+			} else {
+				for i := 0; i < valVal.Len(); i++ {
+					args = append(args, valVal.Index(i).Interface())
+				}
+				expr = fmt.Sprintf("%s %s (%s)", key, o.inOpr, Placeholders(valVal.Len()))
+			}
+		} else {
+			expr = fmt.Sprintf("%s %s ?", key, o.equalOpr)
+			args = append(args, val)
+		}
+	}
+
+	return
+}
+
+type operators struct {
+	equalOpr, inOpr, nullOpr, inEmptyExpr string
+}
+
+func newOperators(useNotOpr, useLike bool) (o operators) {
+	o = operators{
+		equalOpr:    "=",
+		inOpr:       "IN",
+		nullOpr:     "IS",
+		inEmptyExpr: "(1=0)", // Portable FALSE
+	}
+
+	switch {
+	case useNotOpr && useLike:
+		o.equalOpr = "NOT LIKE"
+		o.inOpr = "NOT IN"
+		o.nullOpr = "IS NOT"
+		o.inEmptyExpr = "(1=1)"
+		break
+	case useNotOpr:
+		o.equalOpr = "<>"
+		o.inOpr = "NOT IN"
+		o.nullOpr = "IS NOT"
+		o.inEmptyExpr = "(1=1)"
+		break
+	case useLike:
+		o.equalOpr = "LIKE"
+		o.inOpr = "IN"
+		o.nullOpr = "IS"
+		break
+	}
+
+	return
+}
+
+// LtSlice is syntactic sugar for use with Where/Having/Set methods.
+// It provides a stable alternative to Lt (which is a map in which order is random, this makes it hard to test)
+// Ex:
+//     .Where(NewLt.Append("id", 1)) == id < 1
+func NewLt() *LtSlice {
+	return &LtSlice{}
+}
+
+type LtSlice struct {
+	lts []columnValue
+}
+
+func (lt *LtSlice) Append(column string, value interface{}) *LtSlice {
+	lt.lts = append(lt.lts, columnValue{
+		column: column,
+		value:  value,
+	})
+
+	return lt
+}
+
+func (lt LtSlice) toSql(opposite, orEq bool) (sql string, args []interface{}, err error) {
+	var (
+		exprs []string
+		opr   string = "<"
+	)
+
+	if opposite {
+		opr = ">"
+	}
+
+	if orEq {
+		opr = fmt.Sprintf("%s%s", opr, "=")
+	}
+
+	for _, cv := range lt.lts {
+		expr := ""
+		key := cv.column
+		val := cv.value
+
+		switch v := val.(type) {
+		case driver.Valuer:
+			if val, err = v.Value(); err != nil {
+				return
+			}
+		}
+
+		if val == nil {
+			err = fmt.Errorf("cannot use null with less than or greater than operators")
+			return
+		} else {
+			if isListType(val) {
+				err = fmt.Errorf("cannot use array or slice with less than or greater than operators")
+				return
+			} else {
+				expr = fmt.Sprintf("%s %s ?", key, opr)
+				args = append(args, val)
+			}
+		}
+		exprs = append(exprs, expr)
+	}
+	sql = strings.Join(exprs, " AND ")
+	return
+}
+
+func (lt LtSlice) ToSql() (sql string, args []interface{}, err error) {
+	return lt.toSql(false, false)
+}
+
+// LtOrEqSlice is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(NewLtOrEq().Append("id", 1)) == "id <= 1"
+func NewLtOrEq() *LtOrEqSlice {
+	return &LtOrEqSlice{}
+}
+
+type LtOrEqSlice struct {
+	LtSlice
+}
+
+func (ltOrEq LtOrEqSlice) ToSql() (sql string, args []interface{}, err error) {
+	return ltOrEq.toSql(false, true)
+}
+
+func (s *LtOrEqSlice) Append(column string, value interface{}) *LtOrEqSlice {
+	s.LtSlice.Append(column, value)
+	return s
+}
+
+// Gt is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(NewGt().Append("id", 1)) == "id > 1"
+func NewGt() *GtSlice {
+	return &GtSlice{}
+}
+
+type GtSlice struct{
+	LtSlice
+} 
+
+func (gt GtSlice) ToSql() (sql string, args []interface{}, err error) {
+	return gt.toSql(true, false)
+}
+
+func (s *GtSlice) Append(column string, value interface{}) *GtSlice {
+	s.LtSlice.Append(column, value)
+	return s
+}
+
+// GtOrEq is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(NewGtOrEq().Append("id", 1)) == "id >= 1"
+func NewGtOrEq() *GtOrEqSlice {
+	return &GtOrEqSlice{}
+}
+
+type GtOrEqSlice struct {
+	LtSlice
+}
+
+func (gtOrEq GtOrEqSlice) ToSql() (sql string, args []interface{}, err error) {
+	return gtOrEq.toSql(true, true)
+}
+
+func (s *GtOrEqSlice) Append(column string, value interface{}) *GtOrEqSlice {
+	s.LtSlice.Append(column, value)
+	return s
 }

@@ -3,3 +3,4 @@ squirrel.test
 .idea
 *.iml
 vendor
+.vscode
