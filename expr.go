@@ -113,12 +113,10 @@ func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface
 		args = append(args, sargs...)
 	}
 
-	if len(exprs) > 0 {
-		if useOr {
-			sql = strings.Join(exprs, " OR ")
-		} else {
-			sql = strings.Join(exprs, " AND ")
-		}
+	if useOr {
+		sql = strings.Join(exprs, " OR ")
+	} else {
+		sql = strings.Join(exprs, " AND ")
 	}
 
 	return
@@ -203,9 +201,7 @@ func (lt Lt) toSql(opposite, orEq bool) (sql string, args []interface{}, err err
 		exprs = append(exprs, expr)
 	}
 
-	if len(exprs) > 0 {
-		sql = strings.Join(exprs, " AND ")
-	}
+	sql = strings.Join(exprs, " AND ")
 	
 	return
 }
@@ -337,12 +333,10 @@ func (lt EqSlice) toSql(useNotOpr, useOr, useLike bool) (sql string, args []inte
 		args = append(args, sargs...)
 	}
 
-	if len(exprs) > 0 {
-		if useOr {
-			sql = strings.Join(exprs, " OR ")
-		} else {
-			sql = strings.Join(exprs, " AND ")
-		}
+	if useOr {
+		sql = strings.Join(exprs, " OR ")
+	} else {
+		sql = strings.Join(exprs, " AND ")
 	}
 
 	return
@@ -576,9 +570,7 @@ func (lt LtSlice) toSql(opposite, orEq bool) (sql string, args []interface{}, er
 		exprs = append(exprs, expr)
 	}
 
-	if len(exprs) > 0 {
-		sql = strings.Join(exprs, " AND ")
-	}
+	sql = strings.Join(exprs, " AND ")
 	
 	return
 }

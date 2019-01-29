@@ -54,3 +54,46 @@ func TestWherePartMap(t *testing.T) {
 	test(m)
 	test(Eq(m))
 }
+
+func TestWherePartEmptyMap(t *testing.T) {
+	test := func(pred interface{}) {
+		sql, _, _ := newWherePart(pred).ToSql()
+		expect := []string{""}
+		if sql != expect[0] && sql != expect[1] {
+			t.Errorf("expected one of %#v, got %#v", expect, sql)
+		}
+	}
+	m := map[string]interface{}{}
+	test(m)
+	test(Eq(m))
+}
+
+func TestMultipleWherePartsOneEmptyEqMap(t *testing.T) {
+	var whereParts []Sqlizer
+	sql := &bytes.Buffer{}
+	var args []interface{}
+
+	whereParts = append(whereParts, newWherePart(Eq{}))
+	whereParts = append(whereParts, newWherePart("test", 1))
+
+	args, err := appendToSql(whereParts, sql, " AND ", args)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "test", sql.String())
+	assert.Equal(t, []interface{}{1}, args)
+}
+
+func TestMultipleWherePartsOneEmptyEqSlice(t *testing.T) {
+	var whereParts []Sqlizer
+	sql := &bytes.Buffer{}
+	var args []interface{}
+
+	whereParts = append(whereParts, newWherePart(NewEq()))
+	whereParts = append(whereParts, newWherePart("test", 1))
+
+	args, err := appendToSql(whereParts, sql, " AND ", args)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "test", sql.String())
+	assert.Equal(t, []interface{}{1}, args)
+}
