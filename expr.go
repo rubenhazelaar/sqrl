@@ -342,6 +342,11 @@ func (lt EqSlice) toSql(useNotOpr, useOr, useLike bool) (sql string, args []inte
 	return
 }
 
+// Gives back the length of how many items are appended
+func (eq EqSlice) Len() int {
+	return len(eq.slice)
+}
+
 // ToSql builds the query into a SQL string and bound args.
 func (lt EqSlice) ToSql() (string, []interface{}, error) {
 	return lt.toSql(false, false, false)
@@ -368,6 +373,10 @@ func (s *NotEqSlice) Append(column string, value interface{}) *NotEqSlice {
 	return s
 }
 
+// Gives back the length of how many items are appended
+func (s NotEqSlice) Len() int {
+	return s.EqSlice.Len()
+}
 
 // EqOr is syntactic sugar for use with Where/Having/Set methods.
 // Ex:
@@ -390,6 +399,10 @@ func (s *EqOrSlice) Append(column string, value interface{}) *EqOrSlice {
 	return s
 }
 
+// Gives back the length of how many items are appended
+func (s EqOrSlice) Len() int {
+	return s.EqSlice.Len()
+}
 
 // LikeOr is syntactic sugar for use with Where/Having/Set methods.
 // Ex:
@@ -410,6 +423,11 @@ func (likeor LikeOrSlice) ToSql() (sql string, args []interface{}, err error) {
 func (s *LikeOrSlice) Append(column string, value interface{}) *LikeOrSlice {
 	s.EqSlice.Append(column, value)
 	return s
+}
+
+// Gives back the length of how many items are appended
+func (s LikeOrSlice) Len() int {
+	return s.EqSlice.Len()
 }
 
 type columnValue struct {
@@ -579,6 +597,11 @@ func (lt LtSlice) ToSql() (sql string, args []interface{}, err error) {
 	return lt.toSql(false, false)
 }
 
+// Gives back the length of how many items are appended
+func (lt LtSlice) Len() int {
+	return len(lt.lts)
+}
+
 // LtOrEqSlice is syntactic sugar for use with Where/Having/Set methods.
 // Ex:
 //     .Where(NewLtOrEq().Append("id", 1)) == "id <= 1"
@@ -597,6 +620,11 @@ func (ltOrEq LtOrEqSlice) ToSql() (sql string, args []interface{}, err error) {
 func (s *LtOrEqSlice) Append(column string, value interface{}) *LtOrEqSlice {
 	s.LtSlice.Append(column, value)
 	return s
+}
+
+// Gives back the length of how many items are appended
+func (s LtOrEqSlice) Len() int {
+	return s.LtSlice.Len()
 }
 
 // Gt is syntactic sugar for use with Where/Having/Set methods.
@@ -619,6 +647,11 @@ func (s *GtSlice) Append(column string, value interface{}) *GtSlice {
 	return s
 }
 
+// Gives back the length of how many items are appended
+func (s GtSlice) Len() int {
+	return s.LtSlice.Len()
+}
+
 // GtOrEq is syntactic sugar for use with Where/Having/Set methods.
 // Ex:
 //     .Where(NewGtOrEq().Append("id", 1)) == "id >= 1"
@@ -637,4 +670,9 @@ func (gtOrEq GtOrEqSlice) ToSql() (sql string, args []interface{}, err error) {
 func (s *GtOrEqSlice) Append(column string, value interface{}) *GtOrEqSlice {
 	s.LtSlice.Append(column, value)
 	return s
+}
+
+// Gives back the length of how many items are appended
+func (s GtOrEqSlice) Len() int {
+	return s.LtSlice.Len()
 }

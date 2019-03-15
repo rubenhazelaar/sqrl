@@ -306,6 +306,9 @@ func TestEqSliceToSql(t *testing.T) {
 
 	expectedArgs := []interface{}{1}
 	assert.Equal(t, expectedArgs, args)
+
+	expectedLength := 1
+	assert.Equal(t, expectedLength, b.Len())
 }
 
 func TestEqSliceInToSql(t *testing.T) {
@@ -418,6 +421,9 @@ func TestLtSliceToSql(t *testing.T) {
 
 	expectedArgs := []interface{}{1}
 	assert.Equal(t, expectedArgs, args)
+
+	expectedLength := 1
+	assert.Equal(t, expectedLength, b.Len())
 }
 
 func TestLtOrEqSliceToSql(t *testing.T) {
