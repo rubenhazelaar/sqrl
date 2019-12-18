@@ -85,6 +85,21 @@ func TestLikeOrInToSql(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestILikeOrInToSql(t *testing.T) {
+	b := ILikeOr{
+		"id":   1,
+		"name": "Joe",
+	}
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "id ILIKE ? OR name ILIKE ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1, "Joe"}
+	assert.Equal(t, expectedArgs, args)
+}
+
 func TestEqInEmptyToSql(t *testing.T) {
 	b := Eq{"id": []int{}}
 	sql, args, err := b.ToSql()
@@ -369,6 +384,20 @@ func TestLikeOrSliceInToSql(t *testing.T) {
 	assert.NoError(t, err)
 
 	expectedSql := "id LIKE ? OR name LIKE ?"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{1, "Joe"}
+	assert.Equal(t, expectedArgs, args)
+}
+
+func TestILikeOrSliceInToSql(t *testing.T) {
+	b := NewILikeOr().
+		Append("id", 1).
+		Append("name", "Joe")
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "id ILIKE ? OR name ILIKE ?"
 	assert.Equal(t, expectedSql, sql)
 
 	expectedArgs := []interface{}{1, "Joe"}

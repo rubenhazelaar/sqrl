@@ -99,9 +99,9 @@ func (lt aliasExpr) ToSql() (sql string, args []interface{}, err error) {
 //     .Where(Eq{"id": 1})
 type Eq map[string]interface{}
 
-func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface{}, err error) {
+func (eq Eq) toSql(useNotOpr, useOr, useLike, insensitiveLike bool) (sql string, args []interface{}, err error) {
 	var exprs []string
-	o := newOperators(useNotOpr, useLike)
+	o := newOperators(useNotOpr, useLike, insensitiveLike)
 
 	for key, val := range eq {
 		expr, sargs, err := keyVal(key, val, useLike, o)
@@ -124,7 +124,7 @@ func (eq Eq) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface
 
 // ToSql builds the query into a SQL string and bound args.
 func (eq Eq) ToSql() (sql string, args []interface{}, err error) {
-	return eq.toSql(false, false, false)
+	return eq.toSql(false, false, false, false)
 }
 
 // NotEq is syntactic sugar for use with Where/Having/Set methods.
@@ -134,7 +134,7 @@ type NotEq Eq
 
 // ToSql builds the query into a SQL string and bound args.
 func (s NotEq) ToSql() (sql string, args []interface{}, err error) {
-	return Eq(s).toSql(true, false, false)
+	return Eq(s).toSql(true, false, false, false)
 }
 
 // EqOr is syntactic sugar for use with Where/Having/Set methods.
@@ -144,17 +144,27 @@ type EqOr Eq
 
 // ToSql builds the query into a SQL string and bound args.
 func (eqor EqOr) ToSql() (sql string, args []interface{}, err error) {
-	return Eq(eqor).toSql(false, true, false)
+	return Eq(eqor).toSql(false, true, false, false)
 }
 
 // LikeOr is syntactic sugar for use with Where/Having/Set methods.
 // Ex:
-//     .Where(LikeOr{"id": 1, "name": "Joe"}) == "id = 1 OR name = 'Joe'"
+//     .Where(LikeOr{"email": "Joe%", "name": "Joe%"}) == "id LIKE 'Joe%' OR name LIKE 'Joe%'"
 type LikeOr Eq
 
 // ToSql builds the query into a SQL string and bound args.
 func (likeor LikeOr) ToSql() (sql string, args []interface{}, err error) {
-	return Eq(likeor).toSql(false, true, true)
+	return Eq(likeor).toSql(false, true, true, false)
+}
+
+// ILikeOr is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(LikeOr{"email": "Joe%", "name": "Joe%"}) == "id ILIKE 'Joe%' OR name ILIKE 'Joe%'"
+type ILikeOr Eq
+
+// ToSql builds the query into a SQL string and bound args.
+func (likeor ILikeOr) ToSql() (sql string, args []interface{}, err error) {
+	return Eq(likeor).toSql(false, true, true, true)
 }
 
 // Lt is syntactic sugar for use with Where/Having/Set methods.
@@ -202,7 +212,7 @@ func (lt Lt) toSql(opposite, orEq bool) (sql string, args []interface{}, err err
 	}
 
 	sql = strings.Join(exprs, " AND ")
-	
+
 	return
 }
 
@@ -316,9 +326,9 @@ func (lt *EqSlice) Append(column string, value interface{}) *EqSlice {
 	return lt
 }
 
-func (lt EqSlice) toSql(useNotOpr, useOr, useLike bool) (sql string, args []interface{}, err error) {
+func (lt EqSlice) toSql(useNotOpr, useOr, useLike, insensitiveLike bool) (sql string, args []interface{}, err error) {
 	var exprs []string
-	o := newOperators(useNotOpr, useLike)
+	o := newOperators(useNotOpr, useLike, insensitiveLike)
 
 	for _, cv := range lt.slice {
 		key := cv.column
@@ -349,7 +359,7 @@ func (eq EqSlice) Len() int {
 
 // ToSql builds the query into a SQL string and bound args.
 func (lt EqSlice) ToSql() (string, []interface{}, error) {
-	return lt.toSql(false, false, false)
+	return lt.toSql(false, false, false, false)
 }
 
 // NotEq is syntactic sugar for use with Where/Having/Set methods.
@@ -361,11 +371,11 @@ func NewNotEq() *NotEqSlice {
 
 type NotEqSlice struct {
 	EqSlice
-} 
+}
 
 // ToSql builds the query into a SQL string and bound args.
 func (s NotEqSlice) ToSql() (sql string, args []interface{}, err error) {
-	return s.toSql(true, false, false)
+	return s.toSql(true, false, false, false)
 }
 
 func (s *NotEqSlice) Append(column string, value interface{}) *NotEqSlice {
@@ -391,7 +401,7 @@ type EqOrSlice struct {
 
 // ToSql builds the query into a SQL string and bound args.
 func (eqor EqOrSlice) ToSql() (sql string, args []interface{}, err error) {
-	return eqor.toSql(false, true, false)
+	return eqor.toSql(false, true, false, false)
 }
 
 func (s *EqOrSlice) Append(column string, value interface{}) *EqOrSlice {
@@ -406,7 +416,7 @@ func (s EqOrSlice) Len() int {
 
 // LikeOr is syntactic sugar for use with Where/Having/Set methods.
 // Ex:
-//     .Where(NewLikeOr().Append("id", 1).Append(("name", "Joe")) == "id = 1 OR name = 'Joe'"
+//     .Where(LikeOr{"email": "Joe%", "name": "Joe%"}) == "id ILIKE 'Joe%' OR name ILIKE 'Joe%'"
 func NewLikeOr() *LikeOrSlice {
 	return &LikeOrSlice{}
 }
@@ -417,7 +427,7 @@ type LikeOrSlice struct {
 
 // ToSql builds the query into a SQL string and bound args.
 func (likeor LikeOrSlice) ToSql() (sql string, args []interface{}, err error) {
-	return likeor.toSql(false, true, true)
+	return likeor.toSql(false, true, true, false)
 }
 
 func (s *LikeOrSlice) Append(column string, value interface{}) *LikeOrSlice {
@@ -427,6 +437,32 @@ func (s *LikeOrSlice) Append(column string, value interface{}) *LikeOrSlice {
 
 // Gives back the length of how many items are appended
 func (s LikeOrSlice) Len() int {
+	return s.EqSlice.Len()
+}
+
+// ILikeOr is syntactic sugar for use with Where/Having/Set methods.
+// Ex:
+//     .Where(LikeOr{"email": "Joe%", "name": "Joe%"}) == "id ILIKE 'Joe%' OR name ILIKE 'Joe%'"
+func NewILikeOr() *ILikeOrSlice {
+	return &ILikeOrSlice{}
+}
+
+type ILikeOrSlice struct {
+	EqSlice
+}
+
+// ToSql builds the query into a SQL string and bound args.
+func (likeor ILikeOrSlice) ToSql() (sql string, args []interface{}, err error) {
+	return likeor.toSql(false, true, true, true)
+}
+
+func (s *ILikeOrSlice) Append(column string, value interface{}) *ILikeOrSlice {
+	s.EqSlice.Append(column, value)
+	return s
+}
+
+// Gives back the length of how many items are appended
+func (s ILikeOrSlice) Len() int {
 	return s.EqSlice.Len()
 }
 
@@ -495,7 +531,7 @@ type operators struct {
 	equalOpr, inOpr, nullOpr, inEmptyExpr string
 }
 
-func newOperators(useNotOpr, useLike bool) (o operators) {
+func newOperators(useNotOpr, useLike, insensitiveLike bool) (o operators) {
 	o = operators{
 		equalOpr:    "=",
 		inOpr:       "IN",
@@ -505,7 +541,12 @@ func newOperators(useNotOpr, useLike bool) (o operators) {
 
 	switch {
 	case useNotOpr && useLike:
-		o.equalOpr = "NOT LIKE"
+		if insensitiveLike {
+			o.equalOpr = "NOT ILIKE"
+		} else {
+			o.equalOpr = "NOT LIKE"
+		}
+
 		o.inOpr = "NOT IN"
 		o.nullOpr = "IS NOT"
 		o.inEmptyExpr = "(1=1)"
@@ -517,7 +558,12 @@ func newOperators(useNotOpr, useLike bool) (o operators) {
 		o.inEmptyExpr = "(1=1)"
 		break
 	case useLike:
-		o.equalOpr = "LIKE"
+		if insensitiveLike {
+			o.equalOpr = "ILIKE"
+		} else {
+			o.equalOpr = "LIKE"
+		}
+
 		o.inOpr = "IN"
 		o.nullOpr = "IS"
 		break
@@ -589,7 +635,7 @@ func (lt LtSlice) toSql(opposite, orEq bool) (sql string, args []interface{}, er
 	}
 
 	sql = strings.Join(exprs, " AND ")
-	
+
 	return
 }
 
@@ -634,9 +680,9 @@ func NewGt() *GtSlice {
 	return &GtSlice{}
 }
 
-type GtSlice struct{
+type GtSlice struct {
 	LtSlice
-} 
+}
 
 func (gt GtSlice) ToSql() (sql string, args []interface{}, err error) {
 	return gt.toSql(true, false)
