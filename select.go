@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"database/sql"
-	"fmt"
+	"errors"
 	"strconv"
 	"strings"
 )
@@ -15,6 +15,7 @@ type SelectBuilder struct {
 
 	prefixes    exprs
 	distinct    bool
+	distinctOn  []Sqlizer
 	options     []string
 	columns     []Sqlizer
 	fromParts   []Sqlizer
@@ -107,7 +108,7 @@ func (b *SelectBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 
 func (b *SelectBuilder) toSql(replacePlaceholders bool) (sqlStr string, args []interface{}, err error) {
 	if len(b.columns) == 0 {
-		err = fmt.Errorf("select statements must have at least one result column")
+		err = errors.New("select statements must have at least one result column")
 		return
 	}
 
@@ -120,7 +121,22 @@ func (b *SelectBuilder) toSql(replacePlaceholders bool) (sqlStr string, args []i
 
 	sql.WriteString("SELECT ")
 
-	if b.distinct {
+	// DISTINCT ON has precedence over a normal DISTINCT statement
+	if len(b.distinctOn) > 0 {
+		if b.distinct {
+			err = errors.New("select statements can only have either a DISTINCT or a DISTINCT ON clause, not both")
+			return
+		}
+
+		sql.WriteString("DISTINCT ON (")
+
+		args, err = appendToSql(b.distinctOn, sql, ", ", args)
+		if err != nil {
+			return
+		}
+
+		sql.WriteString(") ")
+	} else if b.distinct {
 		sql.WriteString("DISTINCT ")
 	}
 
@@ -217,8 +233,19 @@ func (b *SelectBuilder) Prefix(sql string, args ...interface{}) *SelectBuilder {
 }
 
 // Distinct adds a DISTINCT clause to the query.
+// IMPORTANT: A select statement can only have either a DISTINCT or a DISTINCT ON clause, when using both *SelectBuilder
+// will return an error
 func (b *SelectBuilder) Distinct() *SelectBuilder {
 	b.distinct = true
+
+	return b
+}
+
+// DistinctOn adds a DISTINCT ON clause to the query.
+// IMPORTANT: A select statement can only have either a DISTINCT or a DISTINCT ON clause, when using both *SelectBuilder
+// will return an error
+func (b *SelectBuilder) DistinctOn(pred interface{}, args ...interface{}) *SelectBuilder {
+	b.distinctOn = append(b.distinctOn, newPart(pred, args...))
 
 	return b
 }
@@ -243,7 +270,8 @@ func (b *SelectBuilder) Columns(columns ...string) *SelectBuilder {
 // Column adds a result column to the query.
 // Unlike Columns, Column accepts args which will be bound to placeholders in
 // the columns string, for example:
-//   Column("IF(col IN ("+Placeholders(3)+"), 1, 0) as col", 1, 2, 3)
+//
+//	Column("IF(col IN ("+Placeholders(3)+"), 1, 0) as col", 1, 2, 3)
 func (b *SelectBuilder) Column(column interface{}, args ...interface{}) *SelectBuilder {
 	b.columns = append(b.columns, newPart(column, args...))
 
@@ -376,10 +404,10 @@ func (b *SelectBuilder) Copy() *SelectBuilder {
 	// Then copy all reference types of the struct to make a deep copy
 	nb.prefixes = make(exprs, len(vb.prefixes))
 	copy(nb.prefixes, vb.prefixes)
-	
+
 	nb.options = make([]string, len(vb.options))
 	copy(nb.options, vb.options)
-	
+
 	nb.fromParts = make([]Sqlizer, len(vb.fromParts))
 	copy(nb.fromParts, vb.fromParts)
 
@@ -388,16 +416,16 @@ func (b *SelectBuilder) Copy() *SelectBuilder {
 
 	nb.whereParts = make([]Sqlizer, len(vb.whereParts))
 	copy(nb.whereParts, vb.whereParts)
-	
+
 	nb.groupBys = make([]string, len(vb.groupBys))
 	copy(nb.groupBys, vb.groupBys)
-	
+
 	nb.havingParts = make([]Sqlizer, len(vb.havingParts))
 	copy(nb.havingParts, vb.havingParts)
-	
+
 	nb.orderBys = make([]string, len(vb.orderBys))
 	copy(nb.orderBys, vb.orderBys)
-	
+
 	nb.suffixes = make(exprs, len(vb.suffixes))
 	copy(nb.suffixes, vb.suffixes)
 

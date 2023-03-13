@@ -98,7 +98,6 @@ func TestSelectBuilderZeroOffsetLimit(t *testing.T) {
 	assert.Equal(t, expectedSql, sql)
 }
 
-
 func TestSelectBuilderFromSelect(t *testing.T) {
 	subQ := Select("c").From("d").Where(Eq{"i": 0})
 	b := Select("a", "b").FromSelect(subQ, "subq")
@@ -231,7 +230,7 @@ func TestSelectCopy(t *testing.T) {
 	s2.Join("baz ON bar.foo = baz.foo AND baz.foo = ?", 42).Distinct()
 
 	sql, _, err := s1.ToSql()
-	
+
 	assert.NoError(t, err)
 	assert.Equal(t, "SELECT SQL_NO_CACHE * FROM foo", sql)
 
@@ -239,4 +238,23 @@ func TestSelectCopy(t *testing.T) {
 
 	assert.NoError(t, err)
 	assert.Equal(t, "SELECT DISTINCT * FROM foo JOIN baz ON bar.foo = baz.foo AND baz.foo = ?", sql)
+}
+
+func TestSelectDistinctOn(t *testing.T) {
+	s1 := Select("*").DistinctOn("bar").From("foo")
+
+	sql, _, err := s1.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT DISTINCT ON (bar) * FROM foo", sql)
+
+}
+func TestSelectDistinctOnAndDistinct(t *testing.T) {
+	s1 := Select("*").DistinctOn("bar").Distinct().From("foo")
+
+	sql, _, err := s1.ToSql()
+
+	assert.EqualError(t, err, "select statements can only have either a DISTINCT or a DISTINCT ON clause, not both")
+	assert.Equal(t, "", sql)
+
 }
