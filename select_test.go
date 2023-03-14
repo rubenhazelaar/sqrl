@@ -111,6 +111,21 @@ func TestSelectBuilderFromSelect(t *testing.T) {
 	assert.Equal(t, expectedArgs, args)
 }
 
+func TestSelectBuilderFromSelectForPostgres(t *testing.T) {
+	psql := StatementBuilder.PlaceholderFormat(Dollar)
+
+	subQ := psql.Select("c").From("d").Where(Eq{"i": 0})
+	b := psql.Select("a", "b").FromSelect(subQ, "subq").Where(Eq{"y": 1})
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+
+	expectedSql := "SELECT a, b FROM (SELECT c FROM d WHERE i = $1) AS subq WHERE y = $2"
+	assert.Equal(t, expectedSql, sql)
+
+	expectedArgs := []interface{}{0, 1}
+	assert.Equal(t, expectedArgs, args)
+}
+
 func TestSelectBuilderToSqlErr(t *testing.T) {
 	_, _, err := Select().From("x").ToSql()
 	assert.Error(t, err)
