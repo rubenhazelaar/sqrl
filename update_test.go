@@ -173,3 +173,19 @@ func TestUpdateCopy(t *testing.T) {
 	expectedArgs = []interface{}{1, 3}
 	assert.Equal(t, expectedArgs, args)
 }
+
+func TestUpdateBuilderWithFixedExprFrom(t *testing.T) {
+	b := Update("a").
+		Set("foo", Expr("b.foo")).
+		Set("bar", Expr("b.bar")).
+		FromValues(Values("id", "foo", "bar").
+			Values(1, "foovalue1", "barvalue1").
+			Values(2, "foovalue2", "barvalue2"), "b").
+		Where("id = b.id").
+		Where(Eq{"b.id": 42})
+
+	sql, args, err := b.ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "UPDATE a SET foo = b.foo, bar = b.bar FROM (VALUES ((NULL::a).id,(NULL::a).foo,(NULL::a).bar), (?,?,?),(?,?,?)) AS b (id,foo,bar) WHERE id = b.id AND b.id = ?", sql)
+	assert.Equal(t, []interface{}{1, "foovalue1", "barvalue1", 2, "foovalue2", "barvalue2", 42}, args)
+}

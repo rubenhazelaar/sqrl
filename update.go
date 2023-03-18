@@ -296,6 +296,37 @@ func (b *UpdateBuilder) FromSelect(from *SelectBuilder, alias string) *UpdateBui
 	return b
 }
 
+// FromValues adds a VALUES List (https://www.postgresql.org/docs/current/queries-values.html) to FROM clause of the query.
+//
+// UPDATE ... FROM and VALUES List is an PostgreSQL specific extension and
+// makes it possible to update multiple columns with multiple different values
+// for different rows. The following where statement determines how these values are
+// matched.
+//
+// The query is formatted in a specific way which ensure that the data types
+// for the columns of the table which are updated are used, this does limit the update statement
+// to one table. The pseudo SQL:
+//
+// UPDATE atable
+// set
+//
+//	 columnpk = alias.columnpk,
+//		columnb = alias.columnb
+//
+// FROM (VALUES
+//
+//	((NULL::atable).columnpk, (NULL::atable).columnb),
+//	(1, 'valuebforpk1')
+//	(2, 'valuebforpk2')
+//
+// ) as alias (columnpk, columnb)
+// where alias.columnpk = atable.columnpk
+func (b *UpdateBuilder) FromValues(values *values, alias string) *UpdateBuilder {
+	values.forUpdate(b.table)
+	b.fromParts = append(b.fromParts, Alias(values, alias, values.columns...))
+	return b
+}
+
 // OrderBy adds ORDER BY expressions to the query.
 func (b *UpdateBuilder) OrderBy(orderBys ...string) *UpdateBuilder {
 	b.orderBys = append(b.orderBys, orderBys...)

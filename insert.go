@@ -165,38 +165,8 @@ func (b *InsertBuilder) appendValuesToSQL(w io.Writer, args []interface{}) ([]in
 
 	io.WriteString(w, "VALUES ")
 
-	valuesStrings := make([]string, len(b.values))
-	for r, row := range b.values {
-		valueStrings := make([]string, len(row))
-		for v, val := range row {
-
-			switch typedVal := val.(type) {
-			case expr:
-				valueStrings[v] = typedVal.sql
-				args = append(args, typedVal.args...)
-			case Sqlizer:
-				var valSql string
-				var valArgs []interface{}
-				var err error
-
-				valSql, valArgs, err = typedVal.ToSql()
-				if err != nil {
-					return nil, err
-				}
-
-				valueStrings[v] = valSql
-				args = append(args, valArgs...)
-			default:
-				valueStrings[v] = "?"
-				args = append(args, val)
-			}
-		}
-		valuesStrings[r] = fmt.Sprintf("(%s)", strings.Join(valueStrings, ","))
-	}
-
-	io.WriteString(w, strings.Join(valuesStrings, ","))
-
-	return args, nil
+	args, err := appendValuesToSQL(b.values, w, args)
+	return args, err
 }
 
 func (b *InsertBuilder) appendSelectToSQL(w io.Writer, args []interface{}) ([]interface{}, error) {

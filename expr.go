@@ -75,8 +75,9 @@ func (es exprs) AppendToSql(w io.Writer, sep string, args []interface{}) ([]inte
 
 // aliasExpr helps to alias part of SQL query generated with underlying "expr"
 type aliasExpr struct {
-	expr  Sqlizer
-	alias string
+	expr    Sqlizer
+	alias   string
+	columns []string
 }
 
 // Alias allows to define alias for column in SelectBuilder. Useful when column is
@@ -84,8 +85,8 @@ type aliasExpr struct {
 // Ex:
 //
 //	.Column(Alias(caseStmt, "case_column"))
-func Alias(expr Sqlizer, alias string) aliasExpr {
-	return aliasExpr{expr, alias}
+func Alias(expr Sqlizer, alias string, columns ...string) aliasExpr {
+	return aliasExpr{expr, alias, columns}
 }
 
 func (lt aliasExpr) ToSql() (sql string, args []interface{}, err error) {
@@ -96,8 +97,13 @@ func (lt aliasExpr) ToSql() (sql string, args []interface{}, err error) {
 	default:
 		sql, args, err = lt.expr.ToSql()
 	}
+	if err != nil {
+		return
+	}
 
-	if err == nil {
+	if len(lt.columns) > 0 {
+		sql = fmt.Sprintf("(%s) AS %s (%s)", sql, lt.alias, strings.Join(lt.columns, ","))
+	} else {
 		sql = fmt.Sprintf("(%s) AS %s", sql, lt.alias)
 	}
 
