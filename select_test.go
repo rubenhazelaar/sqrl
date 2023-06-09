@@ -264,6 +264,17 @@ func TestSelectDistinctOn(t *testing.T) {
 	assert.Equal(t, "SELECT DISTINCT ON (bar) * FROM foo", sql)
 
 }
+
+func TestSelectDistinctOnMultipleColumns(t *testing.T) {
+	s1 := Select("*").DistinctOn("bar", "fizz").From("foo")
+
+	sql, _, err := s1.ToSql()
+
+	assert.NoError(t, err)
+	assert.Equal(t, "SELECT DISTINCT ON (bar, fizz) * FROM foo", sql)
+
+}
+
 func TestSelectDistinctOnAndDistinct(t *testing.T) {
 	s1 := Select("*").DistinctOn("bar").Distinct().From("foo")
 

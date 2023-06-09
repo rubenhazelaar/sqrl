@@ -15,7 +15,7 @@ type SelectBuilder struct {
 
 	prefixes    exprs
 	distinct    bool
-	distinctOn  []Sqlizer
+	distinctOns []string
 	options     []string
 	columns     []Sqlizer
 	fromParts   []Sqlizer
@@ -122,19 +122,14 @@ func (b *SelectBuilder) toSql(replacePlaceholders bool) (sqlStr string, args []i
 	sql.WriteString("SELECT ")
 
 	// DISTINCT ON has precedence over a normal DISTINCT statement
-	if len(b.distinctOn) > 0 {
+	if len(b.distinctOns) > 0 {
 		if b.distinct {
 			err = errors.New("select statements can only have either a DISTINCT or a DISTINCT ON clause, not both")
 			return
 		}
 
 		sql.WriteString("DISTINCT ON (")
-
-		args, err = appendToSql(b.distinctOn, sql, ", ", args)
-		if err != nil {
-			return
-		}
-
+		sql.WriteString(strings.Join(b.distinctOns, ", "))
 		sql.WriteString(") ")
 	} else if b.distinct {
 		sql.WriteString("DISTINCT ")
@@ -244,8 +239,8 @@ func (b *SelectBuilder) Distinct() *SelectBuilder {
 // DistinctOn adds a DISTINCT ON clause to the query.
 // IMPORTANT: A select statement can only have either a DISTINCT or a DISTINCT ON clause, when using both *SelectBuilder
 // will return an error
-func (b *SelectBuilder) DistinctOn(pred interface{}, args ...interface{}) *SelectBuilder {
-	b.distinctOn = append(b.distinctOn, newPart(pred, args...))
+func (b *SelectBuilder) DistinctOn(columns ...string) *SelectBuilder {
+	b.distinctOns = append(b.distinctOns, columns...)
 
 	return b
 }
