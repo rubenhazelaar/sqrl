@@ -189,3 +189,12 @@ func TestUpdateBuilderWithFixedExprFrom(t *testing.T) {
 	assert.Equal(t, "UPDATE a SET foo = b.foo, bar = b.bar FROM (VALUES ((NULL::a).id,(NULL::a).foo,(NULL::a).bar), (?,?,?),(?,?,?)) AS b (id,foo,bar) WHERE id = b.id AND b.id = ?", sql)
 	assert.Equal(t, []interface{}{1, "foovalue1", "barvalue1", 2, "foovalue2", "barvalue2", 42}, args)
 }
+
+func TestUpdateBuilderSetWithSelect(t *testing.T) {
+	b := Update("test").Set("x", Select("a").From("b").Where(Eq{"bbb": "ccc"})).Where(Eq{"a": "aa"})
+
+	sql, args, err := b.PlaceholderFormat(Dollar).ToSql()
+	assert.NoError(t, err)
+	assert.Equal(t, "UPDATE test SET x = (SELECT a FROM b WHERE bbb = $1) WHERE a = $2", sql)
+	assert.Equal(t, []interface{}{"ccc", "aa"}, args)
+}

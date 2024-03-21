@@ -258,6 +258,16 @@ func TestExprSqlizer(t *testing.T) {
 	}
 }
 
+func TestExprSelectBuilder(t *testing.T) {
+	b := Expr("(?)", Select("a").From("b").Where(Eq{"bbb": "ccc"}))
+	sql, args, err := b.ToSql()
+
+	if assert.NoError(t, err) {
+		assert.Equal(t, "(SELECT a FROM b WHERE bbb = ?)", sql)
+		assert.Equal(t, []interface{}{"ccc"}, args)
+	}
+}
+
 func TestNestedExprQuery(t *testing.T) {
 	subs := Select("bbb").From("aaa").Where(Eq{"bbb": "ccc"})
 	b := Update("a").

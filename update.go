@@ -131,6 +131,14 @@ func (b *UpdateBuilder) ToSql() (sqlStr string, args []interface{}, err error) {
 	for i, setClause := range b.setClauses {
 		var valSql string
 		switch typedVal := setClause.value.(type) {
+		case *SelectBuilder:
+			var valArgs []interface{}
+			valSql, valArgs, err = typedVal.toSql(false)
+			if err != nil {
+				return
+			}
+			args = append(args, valArgs...)
+			valSql = fmt.Sprintf("(%s)", valSql)
 		case Sqlizer:
 			var valArgs []interface{}
 			valSql, valArgs, err = typedVal.ToSql()

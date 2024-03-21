@@ -35,6 +35,15 @@ func (lt expr) ToSql() (string, []interface{}, error) {
 			return nil
 		}
 		switch arg := lt.args[i-1].(type) {
+		case *SelectBuilder:
+			// Placeholders will not be replaced
+			selectSql, sargs, err := arg.toSql(false)
+			if err != nil {
+				return err
+			}
+
+			args = append(args, sargs...)
+			fmt.Fprintf(buf, selectSql)
 		case Sqlizer:
 			sql, vs, err := arg.ToSql()
 			if err != nil {
